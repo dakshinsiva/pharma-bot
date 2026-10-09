@@ -48,10 +48,10 @@ flowchart LR
 | Stage | What happens | Where |
 |---|---|---|
 | **Dial** | A queue of customers is dialled one at a time with a configurable gap. Each call gets a UUID, a call-log row, and a provider SID once the carrier accepts it. Twilio and Exotel are interchangeable behind one event interface (`callInitiated`, `callAnswered`, `callCompleted`, `callFailed`). | `src/telephony/callController.js`, `twilioOutbound.js`, `exotelOutbound.js` |
-| **Listen** | Twilio opens a Media Stream to the server's WebSocket; base64 μ-law frames are decoded and written straight into a Google streaming-recognition session configured for Tamil with an English alternative and the `phone_call` model. Only final results are acted on; the stream restarts itself on recoverable errors. | `app.js`, `src/stt/googleStreamSTT.js` |
+| **Listen** | Twilio opens a bidirectional Media Stream to the server on `/media-stream/:callId`; inbound base64 μ-law frames are decoded and written straight into a Google streaming-recognition session configured for Tamil with an English alternative and the `phone_call` model. Only final results are acted on; the stream restarts itself on recoverable errors. | `src/telephony/mediaStreamServer.js`, `twilioMediaStream.js`, `src/stt/googleStreamSTT.js` |
 | **Decide** | The transcript is appended to the call's history and sent to the model with `response_format: json_object`. The reply must match `{assistant_speech, agent_action}`; it is validated and replaced by a Tamil "could you repeat that?" fallback if it does not. | `src/llm/processLLM.js`, `src/llm/agentPrompt.js` |
 | **Act** | `SAVE_ORDER` writes the items; `SAVE_CALLBACK` parses the requested time; `END_CALL` updates the customer's status and hangs up. Medicine names are normalised from Tamil to English with a dictionary plus Levenshtein matching, and each item gets a confidence score. | `callController.handleAction`, `src/utils/medicineExtractor.js` |
-| **Speak** | The Tamil reply is synthesised with a Google `ta-IN` voice directly in the telephony format (μ-law, 8 kHz), or in 24 kHz PCM for the browser. | `src/tts/tamilTTS.js` |
+| **Speak** | The Tamil reply is synthesised with a Google `ta-IN` voice directly in the telephony format (μ-law, 8 kHz), the WAV header is stripped, and the samples are written back into the same Media Stream in 200 ms frames followed by a `mark`. The turn only continues once Twilio reports the mark, so the customer has heard the whole reply before the agent acts on it or hangs up. If the customer speaks over the agent, a `clear` flushes the unplayed audio. | `src/tts/tamilTTS.js`, `src/telephony/twilioMediaStream.js` |
 | **Record** | Every call ends with its transcript, the list of actions taken, duration and final carrier status stored on the call log. | `prisma/schema.prisma` |
 
 ## The agent's contract
@@ -131,8 +131,8 @@ npm run call                                   # dial every customer with status
 
 Exotel needs a Flow pointing at this server; the steps are in [docs/EXOTEL_SETUP.md](docs/EXOTEL_SETUP.md).
 
-**Tests**: `npm test` runs the unit tests for the prompt contract and the medicine extractor. They need no
-network or credentials and run in CI. `npm run test:system` exercises the HTTP API against a running
+**Tests**: `npm test` runs the unit tests for the prompt contract, the medicine extractor, the Twilio
+Media Stream protocol and the WebSocket routing. They need no network or credentials and run in CI. `npm run test:system` exercises the HTTP API against a running
 server.
 
 ## Design notes
@@ -146,6 +146,10 @@ server.
   and the controller never sees provider fields.
 - **Audio formats chosen per channel.** STT and TTS are configured in the carrier's native μ-law 8 kHz
   so no transcoding happens on the call path; the browser path uses 24 kHz PCM because it can.
+- **The conversation starts when audio can flow, not when the carrier says "answered".** Twilio's
+  status callback and the Media Stream's `start` frame arrive over different connections in either
+  order, so the greeting is triggered by the stream opening. Turns are serialised per call, and the
+  speech recogniser is started before the greeting so nothing the customer says early is lost.
 - **In-memory call state, durable outcomes.** Active calls and conversation history live in maps for
   speed during the call; orders, callbacks and call logs go to the database as they happen, and the
   transcript is written at hang-up. Stale sessions are swept every thirty minutes.
@@ -160,18 +164,19 @@ What works end to end today:
 - The browser demos and the microphone scripts: Tamil speech in, Tamil speech out, with orders and
   callbacks landing in the database.
 - The REST API, call queue, provider webhooks, and call logging.
-- Outbound dialling via Twilio and Exotel, including inbound μ-law from a Twilio Media Stream into
-  Google streaming STT.
+- The full Twilio phone path: dial, bidirectional Media Stream, customer audio into Google streaming
+  STT, synthesised Tamil back into the call with playback confirmation and barge-in, answering-machine
+  hang-up. The stream protocol handling is covered by tests that drive it with recorded Twilio frames
+  and a real WebSocket client.
 
 What is not finished:
 
-- **Playing the agent's voice into a live phone call.** `CallController.playAudio` is a stub. For Twilio
-  the synthesised μ-law needs to be sent back as outbound Media Stream frames (the WebSocket helper for
-  that exists but is not wired in); for Exotel, which has no media streaming on the plan used, the
-  options are hosting the clip and using `<Play>`, or Exotel's own `<Say>`.
-- **Live-call validation.** Development hit Twilio's do-not-originate restriction on Indian caller IDs
-  and Exotel's KYC gate, so the full phone loop has not been exercised against a real customer. The
-  latency figures above are per-component estimates, not measurements over the PSTN.
+- **Exotel audio.** Exotel has no media streaming on the plan this was built for, so with that provider
+  the agent's replies are logged but not spoken. The options are hosting each clip and using `<Play>`,
+  or Exotel's own `<Say>`.
+- **Live-call validation over the PSTN.** Development hit Twilio's do-not-originate restriction on Indian
+  caller IDs and Exotel's KYC gate, so the loop has been exercised against Twilio's protocol rather than
+  a real customer on a real line. The latency figures above are per-component estimates.
 - Conversation state is per-process, the database is SQLite, and the API has no authentication. All
   three are fine for an MVP and wrong for production; [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) covers
   what would change.
@@ -180,7 +185,7 @@ What is not finished:
 
 ```
 server.js, app.js        HTTP + WebSocket entry point, Express routes, Twilio media-stream handler
-src/telephony/           CallController (queue, state, actions) and the Twilio and Exotel adapters
+src/telephony/           CallController (queue, state, turns), Twilio and Exotel adapters, Media Stream server and protocol
 src/stt/                 Google streaming speech-to-text for Tamil phone audio
 src/tts/                 Google Tamil text-to-speech in telephony and browser formats
 src/llm/                 Conversational and order-taker prompts and their session handlers
@@ -189,7 +194,7 @@ src/routes/              /api/calls, /api/customers, /api/llm, /api/order-taker,
 prisma/                  Schema: customers, orders, callbacks, call logs (SQLite in development)
 public/                  Browser demos for both conversation modes
 scripts/                 Seeding, dialling, microphone test loops, Exotel diagnostics, ngrok setup
-test/                    Unit tests for the prompt contract and the extractor
+test/                    Prompt contract, medicine extractor, Media Stream protocol and WebSocket routing
 docs/                    Architecture, call flow, audio pipeline, prompt, deployment, Exotel setup
 ```
 

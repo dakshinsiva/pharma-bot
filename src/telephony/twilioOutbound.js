@@ -1,10 +1,10 @@
 const twilio = require('twilio');
-const WebSocket = require('ws');
 const { EventEmitter } = require('events');
 
 /**
  * Twilio Outbound Calling Module
- * Handles outbound calls via Twilio with Media Streams
+ * Places outbound calls whose audio is carried over a bidirectional Media
+ * Stream to this server (see mediaStreamServer.js / twilioMediaStream.js).
  */
 
 class TwilioOutbound extends EventEmitter {
@@ -99,10 +99,11 @@ class TwilioOutbound extends EventEmitter {
    * @returns {String} TwiML XML
    */
   generateInitialTwiML(callId) {
+    const host = this.baseUrl.replace(/^https?:\/\//, '').replace(/\/+$/, '');
     return `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Connect>
-    <Stream url="wss://${this.baseUrl.replace('https://', '').replace('http://', '')}/media-stream/${callId}">
+    <Stream url="wss://${host}/media-stream/${callId}">
       <Parameter name="callId" value="${callId}" />
     </Stream>
   </Connect>
@@ -220,9 +221,9 @@ class TwilioOutbound extends EventEmitter {
    * @param {Object} statusData - Status callback data from Twilio
    */
   handleStatusUpdate(statusData) {
-    const { CallSid, CallStatus, To, From } = statusData;
+    const { CallSid, CallStatus, AnsweredBy } = statusData;
     
-    console.log(`[Twilio] Status update for ${CallSid}: ${CallStatus}`);
+    console.log(`[Twilio] Status update for ${CallSid}: ${CallStatus}${AnsweredBy ? ` (answered by ${AnsweredBy})` : ''}`);
 
     // Find call by SID
     let callId = null;
@@ -240,6 +241,14 @@ class TwilioOutbound extends EventEmitter {
         this.emit('callRinging', { callId, callSid: CallSid });
         break;
       case 'in-progress':
+        if (AnsweredBy && AnsweredBy.startsWith('machine')) {
+          // Voicemail picked up: there is nobody to talk to, hang up.
+          console.log(`[Twilio] Answering machine detected on ${CallSid}; hanging up`);
+          this.client.calls(CallSid).update({ status: 'completed' }).catch((error) => {
+            console.error(`[Twilio] Could not hang up ${CallSid}:`, error.message);
+          });
+          break;
+        }
         this.emit('callAnswered', { callId, callSid: CallSid });
         break;
       case 'completed':
@@ -310,74 +319,8 @@ class TwilioOutbound extends EventEmitter {
   }
 }
 
-/**
- * Handle WebSocket connection for Twilio Media Streams
- * @param {WebSocket} ws - WebSocket connection
- * @param {String} callId - Unique call identifier
- * @param {Function} onAudioData - Callback for audio data
- */
-function handleMediaStream(ws, callId, onAudioData) {
-  console.log(`[Twilio] Media stream connected for call ${callId}`);
-
-  let streamSid = null;
-
-  ws.on('message', (data) => {
-    try {
-      const msg = JSON.parse(data);
-
-      switch (msg.event) {
-        case 'start':
-          streamSid = msg.start.streamSid;
-          console.log(`[Twilio] Media stream started: ${streamSid}`);
-          break;
-
-        case 'media':
-          // Audio data in base64 μ-law format
-          const audioPayload = msg.media.payload;
-          if (onAudioData) {
-            onAudioData(audioPayload, callId);
-          }
-          break;
-
-        case 'stop':
-          console.log(`[Twilio] Media stream stopped for call ${callId}`);
-          break;
-      }
-    } catch (error) {
-      console.error(`[Twilio] Error processing media stream message:`, error);
-    }
-  });
-
-  ws.on('close', () => {
-    console.log(`[Twilio] Media stream closed for call ${callId}`);
-  });
-
-  ws.on('error', (error) => {
-    console.error(`[Twilio] Media stream error for call ${callId}:`, error);
-  });
-
-  /**
-   * Send audio to call
-   * @param {String} audioBase64 - Base64 encoded μ-law audio
-   */
-  ws.sendAudio = (audioBase64) => {
-    if (ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({
-        event: 'media',
-        streamSid: streamSid,
-        media: {
-          payload: audioBase64,
-        },
-      }));
-    }
-  };
-
-  return ws;
-}
-
 module.exports = {
   TwilioOutbound,
-  handleMediaStream,
 };
 
 

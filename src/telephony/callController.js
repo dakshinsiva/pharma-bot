@@ -1,6 +1,6 @@
 const { v4: uuidv4 } = require('uuid');
 const { EventEmitter } = require('events');
-const { TwilioOutbound, handleMediaStream } = require('./twilioOutbound');
+const { TwilioOutbound } = require('./twilioOutbound');
 const { ExotelOutbound } = require('./exotelOutbound');
 const { startGoogleSTTStream } = require('../stt/googleStreamSTT');
 const { synthesizeTamil } = require('../tts/tamilTTS');
@@ -157,6 +157,9 @@ class CallController extends EventEmitter {
         startTime: new Date(),
         status: 'initiated',
         sttStream: null,
+        mediaStream: null,
+        conversationStarted: false,
+        turnChain: Promise.resolve(), // serialises transcript handling per call
         transcript: [],
         actions: [],
       });
@@ -186,38 +189,84 @@ class CallController extends EventEmitter {
   }
 
   /**
-   * Handle call answered event
+   * Handle call answered event (provider status callback).
+   * For Twilio the conversation starts when the media stream connects, which
+   * is the moment audio can actually flow; the status callback may arrive
+   * before or after that. Providers without a media stream start here.
    * @param {String} callId - Unique call identifier
    */
   async handleCallAnswered(callId) {
     const callData = this.activeCalls.get(callId);
     if (!callData) return;
 
-    console.log(`[CallController] Handling answered call ${callId}`);
+    console.log(`[CallController] Call ${callId} answered`);
+    await this.updateCallStatus(callId, 'in-progress');
+
+    if (this.provider !== 'twilio') {
+      await this.startConversation(callId);
+    }
+  }
+
+  /**
+   * Attach a Twilio media stream to a call. Customer audio is fed to STT,
+   * and the conversation starts as soon as Twilio reports the stream open.
+   * @param {String} callId - Unique call identifier
+   * @param {TwilioMediaStream} stream
+   */
+  attachMediaStream(callId, stream) {
+    const callData = this.activeCalls.get(callId);
+    if (!callData) {
+      console.warn(`[CallController] Media stream for unknown call ${callId}; closing`);
+      stream.close();
+      return;
+    }
+
+    callData.mediaStream = stream;
+
+    stream.on('media', (audio) => {
+      if (callData.sttStream) callData.sttStream.write(audio);
+    });
+
+    stream.on('start', () => {
+      console.log(`[CallController] Media stream started for ${callId} (${stream.streamSid})`);
+      this.startConversation(callId);
+    });
+
+    stream.on('error', (error) => {
+      console.error(`[CallController] Media stream error for ${callId}:`, error.message);
+    });
+
+    stream.on('close', () => {
+      console.log(`[CallController] Media stream closed for ${callId}`);
+      if (callData.mediaStream === stream) callData.mediaStream = null;
+    });
+  }
+
+  /**
+   * Open the LLM session, start listening, and speak the greeting. Idempotent.
+   * @param {String} callId - Unique call identifier
+   */
+  async startConversation(callId) {
+    const callData = this.activeCalls.get(callId);
+    if (!callData || callData.conversationStarted) return;
+    callData.conversationStarted = true;
+
+    console.log(`[CallController] Starting conversation for ${callId}`);
 
     try {
-      // Update status
-      this.updateCallStatus(callId, 'in-progress');
-
-      // Initialize LLM session
-      const greeting = llmProcessor.initializeSession(callId, callData.name);
-
-      // Generate Tamil greeting audio
-      const audioBuffer = await synthesizeTamil(greeting.assistant_speech);
-
-      // Play greeting (implementation depends on provider)
-      await this.playAudio(callId, audioBuffer);
-
-      // Store first action
-      callData.actions.push(greeting.agent_action);
-
-      // Initialize STT stream
+      // Listen first so nothing the customer says while we greet is lost
       callData.sttStream = startGoogleSTTStream(callId, (transcriptData) => {
         this.handleTranscript(callId, transcriptData);
       });
 
+      const greeting = llmProcessor.initializeSession(callId, callData.name);
+      callData.actions.push(greeting.agent_action);
+
+      const audioBuffer = await synthesizeTamil(greeting.assistant_speech);
+      await this.playAudio(callId, audioBuffer);
+
     } catch (error) {
-      console.error(`[CallController] Error handling answered call:`, error);
+      console.error(`[CallController] Error starting conversation:`, error);
       await this.endCall(callId);
     }
   }
@@ -236,32 +285,40 @@ class CallController extends EventEmitter {
     const transcript = transcriptData.transcript;
     console.log(`[CallController] Transcript for ${callId}: ${transcript}`);
 
-    // Store transcript
     callData.transcript.push({
       text: transcript,
       timestamp: new Date(),
       confidence: transcriptData.confidence,
     });
 
-    try {
-      // Process with LLM
-      const response = await llmProcessor.processTranscript(callId, transcript);
+    // The customer spoke: stop whatever we were saying (barge-in).
+    if (callData.mediaStream) callData.mediaStream.clear();
 
-      // Generate audio for response
-      const audioBuffer = await synthesizeTamil(response.assistant_speech);
+    // Turns run one at a time per call, in the order the customer spoke.
+    callData.turnChain = callData.turnChain
+      .then(() => this.processTurn(callId, transcript))
+      .catch((error) => {
+        console.error(`[CallController] Error processing transcript:`, error);
+      });
+    return callData.turnChain;
+  }
 
-      // Play response
-      await this.playAudio(callId, audioBuffer);
+  /**
+   * One conversational turn: transcript → LLM → speech → action.
+   * @param {String} callId - Unique call identifier
+   * @param {String} transcript - What the customer said
+   */
+  async processTurn(callId, transcript) {
+    const callData = this.activeCalls.get(callId);
+    if (!callData) return;
 
-      // Store action
-      callData.actions.push(response.agent_action);
+    const response = await llmProcessor.processTranscript(callId, transcript);
+    callData.actions.push(response.agent_action);
 
-      // Handle action
-      await this.handleAction(callId, response.agent_action);
+    const audioBuffer = await synthesizeTamil(response.assistant_speech);
+    await this.playAudio(callId, audioBuffer); // resolves once the customer has heard it
 
-    } catch (error) {
-      console.error(`[CallController] Error processing transcript:`, error);
-    }
+    await this.handleAction(callId, response.agent_action);
   }
 
   /**
@@ -424,20 +481,25 @@ class CallController extends EventEmitter {
   }
 
   /**
-   * Play audio on call
+   * Play synthesised speech to the customer and wait until they have heard it.
+   * Over Twilio the μ-law audio is written straight into the media stream.
+   * Exotel has no media stream on the plan this was built for, so there is
+   * nothing to play into; the text is logged and the call carries on.
    * @param {String} callId - Unique call identifier
-   * @param {Buffer} audioBuffer - Audio buffer to play
+   * @param {Buffer} audioBuffer - 8 kHz μ-law audio (WAV header allowed)
+   * @returns {Promise<Boolean>} true if playback completed
    */
   async playAudio(callId, audioBuffer) {
-    // This is a simplified version
-    // In production, you'd upload audio to cloud storage and use URL
-    console.log(`[CallController] Playing audio for call ${callId} (${audioBuffer.length} bytes)`);
-    
-    // For now, just log - actual implementation depends on provider
-    // You would typically:
-    // 1. Upload audioBuffer to S3/Cloud Storage
-    // 2. Get public URL
-    // 3. Call telephony provider's play audio method
+    const callData = this.activeCalls.get(callId);
+    if (!callData) return false;
+
+    if (callData.mediaStream) {
+      console.log(`[CallController] Playing ${audioBuffer.length} bytes to ${callId}`);
+      return callData.mediaStream.play(audioBuffer);
+    }
+
+    console.warn(`[CallController] No media stream for ${callId}; audio not played (${this.provider})`);
+    return false;
   }
 
   /**
@@ -518,6 +580,12 @@ class CallController extends EventEmitter {
     // Stop STT stream
     if (callData.sttStream) {
       callData.sttStream.stop();
+    }
+
+    // Close the media stream, which also ends Twilio's <Connect><Stream>
+    if (callData.mediaStream) {
+      callData.mediaStream.close();
+      callData.mediaStream = null;
     }
 
     // End LLM session

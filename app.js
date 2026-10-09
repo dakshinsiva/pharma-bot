@@ -1,8 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
-const WebSocket = require('ws');
-const { handleMediaStream } = require('./src/telephony/twilioOutbound');
+const { attachMediaStreamServer } = require('./src/telephony/mediaStreamServer');
 const { callController } = require('./src/telephony/callController');
 
 // Import routes
@@ -104,44 +103,18 @@ app.use((error, req, res, next) => {
 });
 
 /**
- * WebSocket Server Setup for Twilio Media Streams
+ * WebSocket server for Twilio Media Streams.
+ * Twilio connects to wss://BASE_URL/media-stream/:callId once the customer
+ * answers; the stream is handed to the call controller, which runs the
+ * conversation over it (customer audio → STT, synthesised replies → customer).
  */
 function setupWebSocketServer(server) {
-  const wss = new WebSocket.Server({ 
-    server,
-    path: '/media-stream',
+  const wss = attachMediaStreamServer(server, (callId, stream) => {
+    console.log(`[WebSocket] Media stream connected for call ${callId}`);
+    callController.attachMediaStream(callId, stream);
   });
 
-  wss.on('connection', (ws, req) => {
-    // Extract callId from URL path
-    const pathParts = req.url.split('/');
-    const callId = pathParts[pathParts.length - 1];
-
-    console.log(`[WebSocket] New connection for call ${callId}`);
-
-    // Handle audio data callback
-    const onAudioData = (audioPayload, callId) => {
-      // Get call data
-      const callData = callController.getCallData(callId);
-      if (!callData || !callData.sttStream) {
-        return;
-      }
-
-      // Convert base64 to buffer and send to STT
-      const audioBuffer = Buffer.from(audioPayload, 'base64');
-      callData.sttStream.write(audioBuffer);
-    };
-
-    // Set up media stream handler
-    handleMediaStream(ws, callId, onAudioData);
-  });
-
-  wss.on('error', (error) => {
-    console.error('[WebSocket] Server error:', error);
-  });
-
-  console.log('[WebSocket] Server initialized');
-
+  console.log('[WebSocket] Media stream server initialized');
   return wss;
 }
 
