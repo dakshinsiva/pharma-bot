@@ -1,0 +1,76 @@
+// This is your Prisma schema file
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Customer {
+  id            String     @id @default(uuid())
+  name          String
+  phone         String     @unique
+  status        String     @default("pending") // pending, contacted, completed, callback_scheduled
+  lastCallTime  DateTime?  @map("last_call_time")
+  createdAt     DateTime   @default(now()) @map("created_at")
+  updatedAt     DateTime   @updatedAt @map("updated_at")
+  
+  orders        Order[]
+  callbacks     Callback[]
+  callLogs      CallLog[]
+  
+  @@map("customers")
+}
+
+model Order {
+  id          String   @id @default(uuid())
+  customerId  String   @map("customer_id")
+  items       String   // JSON string: [{"name": "Paracetamol", "quantity": 2, "notes": "500mg"}]
+  notes       String?
+  status      String   @default("pending") // pending, confirmed, delivered
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  customer    Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  
+  @@map("orders")
+}
+
+model Callback {
+  id           String   @id @default(uuid())
+  customerId   String   @map("customer_id")
+  callbackTime DateTime @map("callback_time")
+  reason       String?
+  status       String   @default("scheduled") // scheduled, completed, cancelled
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  
+  customer     Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  
+  @@map("callbacks")
+}
+
+model CallLog {
+  id           String   @id @default(uuid())
+  customerId   String   @map("customer_id")
+  callSid      String?  @map("call_sid") // Twilio/Exotel call ID
+  provider     String   // twilio or exotel
+  status       String   // initiated, ringing, in-progress, completed, failed, busy, no-answer
+  duration     Int?     // call duration in seconds
+  transcript   String?  // full conversation transcript
+  actions      String?  // JSON string of all agent actions taken
+  startTime    DateTime @default(now()) @map("start_time")
+  endTime      DateTime? @map("end_time")
+  
+  customer     Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  
+  @@map("call_logs")
+}
+
+
+
+
+

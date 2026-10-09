@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📋 Order Taker - Pharmacy</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 900px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        
+        h1 {
+            text-align: center;
+            color: #11998e;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        
+        .mode-badge {
+            display: inline-block;
+            background: #38ef7d;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+        
+        .status {
+            text-align: center;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        
+        .status.idle {
+            background: #f0f0f0;
+            color: #666;
+        }
+        
+        .status.listening {
+            background: #ffeaa7;
+            color: #d63031;
+            animation: pulse 1.5s infinite;
+        }
+        
+        .status.processing {
+            background: #74b9ff;
+            color: #0984e3;
+        }
+        
+        .status.confirming {
+            background: #fdcb6e;
+            color: #e17055;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+        
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        
+        button {
+            flex: 1;
+            padding: 15px 30px;
+            font-size: 16px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .btn-start {
+            background: #11998e;
+            color: white;
+        }
+        
+        .btn-stop {
+            background: #d63031;
+            color: white;
+        }
+        
+        .btn-reset {
+            background: #636e72;
+            color: white;
+        }
+        
+        .order-display {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .order-list {
+            list-style: none;
+        }
+        
+        .order-item {
+            background: white;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            border-left: 4px solid #11998e;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            animation: slideIn 0.3s;
+        }
+        
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+        
+        .medicine-name {
+            font-weight: bold;
+            color: #2d3436;
+            font-size: 18px;
+        }
+        
+        .quantity {
+            background: #11998e;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+        }
+        
+        .transcript {
+            background: #e8f5e9;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .transcript-item {
+            margin-bottom: 10px;
+            padding: 10px;
+            background: white;
+            border-radius: 5px;
+        }
+        
+        .transcript-label {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .customer-label {
+            color: #0984e3;
+        }
+        
+        .agent-label {
+            color: #00b894;
+        }
+        
+        .instructions {
+            background: #fff3cd;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+            border-left: 4px solid #ffc107;
+        }
+        
+        .instructions h3 {
+            color: #e67e22;
+            margin-bottom: 10px;
+        }
+        
+        .instructions ul {
+            margin-left: 20px;
+        }
+        
+        .instructions li {
+            margin: 5px 0;
+            color: #424242;
+        }
+        
+        .info-box {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .info-box h4 {
+            color: #0c5460;
+            margin-bottom: 10px;
+        }
+        
+        .info-box p {
+            color: #0c5460;
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="mode-badge">⚡ QUICK ORDER MODE</div>
+        <h1>📋 Order Taker - Pharmacy</h1>
+        <p class="subtitle">Non-conversational - List all medicines, system confirms</p>
+        
+        <div class="info-box">
+            <h4>How This Works:</h4>
+            <p>1. Click "Start Order Taking"</p>
+            <p>2. Speak ALL your medicines in one go (e.g., "paracetamol 3 strips, dolo 650 2 strips")</p>
+            <p>3. System confirms your entire order</p>
+            <p>4. Say "yes" to confirm or correct any mistakes</p>
+        </div>
+        
+        <div class="status idle" id="status">
+            Ready to take order
+        </div>
+        
+        <div class="controls">
+            <button class="btn-start" id="startBtn" onclick="startOrderTaking()">
+                📋 Start Order Taking
+            </button>
+            <button class="btn-stop" id="stopBtn" onclick="stopListening()" disabled>
+                ⏹️ Stop
+            </button>
+            <button class="btn-reset" onclick="resetOrder()">
+                🔄 Reset
+            </button>
+        </div>
+        
+        <div class="order-display" id="orderDisplay" style="display: none;">
+            <h3 style="margin-bottom: 15px; color: #11998e;">📦 Current Order:</h3>
+            <ul class="order-list" id="orderList">
+                <!-- Order items will appear here -->
+            </ul>
+        </div>
+        
+        <div class="transcript" id="transcript">
+            <h4 style="margin-bottom: 10px; color: #11998e;">💬 Conversation:</h4>
+            <div class="transcript-item">
+                <div class="transcript-label">💡 System</div>
+                Click "Start Order Taking" to begin. Speak all your medicines at once!
+            </div>
+        </div>
+        
+        <div class="instructions">
+            <h3>📋 Instructions:</h3>
+            <ul>
+                <li><strong>Start:</strong> Click "Start Order Taking" and allow microphone</li>
+                <li><strong>Speak:</strong> List ALL medicines in Tamil (e.g., "பாராசிட்டமால் மூணு ஸ்டிரிப், டோலோ 650 ரெண்டு ஸ்டிரிப்")</li>
+                <li><strong>Confirm:</strong> System will confirm your full order</li>
+                <li><strong>Done:</strong> Say "yes/ஆமாம்" to confirm or correct any mistakes</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        const BASE_URL = 'http://localhost:4000';
+        const CALL_ID = 'order-taker-' + Date.now();
+        
+        let recognition = null;
+        let sessionInitialized = false;
+        let isProcessing = false;
+        let currentOrder = [];
+
+        // Initialize Web Speech API
+        window.SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        
+        if (!window.SpeechRecognition) {
+            document.getElementById('status').innerHTML = '❌ Speech Recognition not supported. Please use Chrome or Edge.';
+            document.getElementById('status').className = 'status idle';
+            document.getElementById('startBtn').disabled = true;
+        }
+
+        function addTranscript(role, text) {
+            const transcript = document.getElementById('transcript');
+            const item = document.createElement('div');
+            item.className = 'transcript-item';
+            
+            const label = role === 'customer' ? 
+                '<div class="transcript-label customer-label">👤 You</div>' :
+                '<div class="transcript-label agent-label">🤖 Agent</div>';
+            
+            item.innerHTML = label + '<div>' + text + '</div>';
+            transcript.appendChild(item);
+            transcript.scrollTop = transcript.scrollHeight;
+        }
+
+        function updateStatus(text, className) {
+            const status = document.getElementById('status');
+            status.textContent = text;
+            status.className = `status ${className}`;
+        }
+
+        function displayOrder(items) {
+            if (!items || items.length === 0) return;
+            
+            const orderDisplay = document.getElementById('orderDisplay');
+            const orderList = document.getElementById('orderList');
+            
+            orderDisplay.style.display = 'block';
+            orderList.innerHTML = '';
+            
+            items.forEach(item => {
+                const li = document.createElement('li');
+                li.className = 'order-item';
+                li.innerHTML = `
+                    <span class="medicine-name">${item.medicine_name}</span>
+                    <span class="quantity">${item.quantity}</span>
+                `;
+                orderList.appendChild(li);
+            });
+            
+            currentOrder = items;
+        }
+
+        async function initializeSession() {
+            if (sessionInitialized) return;
+            
+            updateStatus('Initializing...', 'processing');
+            
+            try {
+                const response = await fetch(`${BASE_URL}/api/order-taker/init`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        callId: CALL_ID,
+                        customerName: 'Web Order Test',
+                    }),
+                });
+                
+                const data = await response.json();
+                const greeting = data.greeting.assistant_speech;
+                
+                addTranscript('agent', greeting);
+                await speakText(greeting);
+                
+                sessionInitialized = true;
+                updateStatus('🎤 Listening... (speak all medicines)', 'listening');
+            } catch (error) {
+                addTranscript('system', '❌ Failed to initialize. Make sure server is running: npm start');
+                updateStatus('Error - Server not running?', 'idle');
+            }
+        }
+
+        async function processTranscript(transcript) {
+            if (isProcessing || !transcript.trim()) return;
+            isProcessing = true;
+            
+            const startTime = Date.now();
+            updateStatus('⏳ Processing order...', 'processing');
+            addTranscript('customer', transcript);
+            
+            try {
+                // Start LLM processing
+                const llmStart = Date.now();
+                const response = await fetch(`${BASE_URL}/api/order-taker/process`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        callId: CALL_ID,
+                        transcript,
+                    }),
+                });
+                const llmTime = Date.now() - llmStart;
+                console.log(`⏱️ LLM processing: ${llmTime}ms`);
+                
+                const data = await response.json();
+                const agentSpeech = data.response.assistant_speech;
+                const action = data.response.agent_action.type;
+                
+                addTranscript('agent', agentSpeech);
+                
+                // Start TTS immediately (parallel with display update)
+                const ttsStart = Date.now();
+                await speakText(agentSpeech);
+                const ttsTime = Date.now() - ttsStart;
+                console.log(`⏱️ TTS synthesis + playback: ${ttsTime}ms`);
+                
+                const totalTime = Date.now() - startTime;
+                console.log(`⏱️ Total response time: ${totalTime}ms`);
+                
+                if (action === 'SAVE_ORDER') {
+                    const items = data.response.agent_action.order_details.items;
+                    displayOrder(items);
+                    updateStatus('✅ Order confirmed!', 'idle');
+                    stopListening();
+                } else {
+                    updateStatus('🎤 Listening... (confirm or correct)', 'confirming');
+                }
+                
+            } catch (error) {
+                addTranscript('system', '❌ Failed to process. Check server connection.');
+                updateStatus('Error processing', 'idle');
+            } finally {
+                isProcessing = false;
+            }
+        }
+
+        async function speakText(text) {
+            updateStatus('🔊 Agent speaking...', 'processing');
+            
+            try {
+                // Use web-optimized TTS settings
+                const response = await fetch(`${BASE_URL}/api/tts/tamil`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        text, 
+                        format: 'base64',
+                        optimizeForWeb: true  // Use faster, better quality settings
+                    }),
+                });
+                
+                const data = await response.json();
+                const audioData = atob(data.audio);
+                const arrayBuffer = new ArrayBuffer(audioData.length);
+                const view = new Uint8Array(arrayBuffer);
+                
+                for (let i = 0; i < audioData.length; i++) {
+                    view[i] = audioData.charCodeAt(i);
+                }
+                
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                const source = audioContext.createBufferSource();
+                source.buffer = audioBuffer;
+                source.connect(audioContext.destination);
+                
+                return new Promise((resolve) => {
+                    source.onended = resolve;
+                    source.start(0);
+                });
+                
+            } catch (error) {
+                console.error('Error playing audio:', error);
+            }
+        }
+
+        async function startOrderTaking() {
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('stopBtn').disabled = false;
+            
+            await initializeSession();
+            
+            recognition = new SpeechRecognition();
+            recognition.lang = 'ta-IN';
+            recognition.continuous = true;
+            recognition.interimResults = false;
+            
+            recognition.onresult = (event) => {
+                const last = event.results.length - 1;
+                const transcript = event.results[last][0].transcript;
+                processTranscript(transcript);
+            };
+            
+            recognition.onerror = (event) => {
+                console.error('Speech recognition error:', event.error);
+                if (event.error !== 'no-speech') {
+                    addTranscript('system', `⚠️ Warning: ${event.error}`);
+                }
+            };
+            
+            recognition.onend = () => {
+                if (document.getElementById('stopBtn').disabled === false) {
+                    recognition.start();
+                }
+            };
+            
+            recognition.start();
+        }
+
+        function stopListening() {
+            if (recognition) {
+                recognition.stop();
+                recognition = null;
+            }
+            
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+            updateStatus('Stopped', 'idle');
+        }
+
+        function resetOrder() {
+            stopListening();
+            document.getElementById('transcript').innerHTML = `
+                <h4 style="margin-bottom: 10px; color: #11998e;">💬 Conversation:</h4>
+                <div class="transcript-item">
+                    <div class="transcript-label">💡 System</div>
+                    Click "Start Order Taking" to begin. Speak all your medicines at once!
+                </div>
+            `;
+            document.getElementById('orderDisplay').style.display = 'none';
+            document.getElementById('orderList').innerHTML = '';
+            sessionInitialized = false;
+            isProcessing = false;
+            currentOrder = [];
+            updateStatus('Ready to take order', 'idle');
+        }
+    </script>
+</body>
+</html>
+
+
+

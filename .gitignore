@@ -1,0 +1,27 @@
+# secrets and credentials
+.env
+.env.*
+!.env.example
+google-credentials.json
+
+# local database and logs
+prisma/dev.db
+prisma/dev.db-journal
+*.log
+
+# audio produced by the voice test scripts
+*.wav
+*.mp3
+recordings/
+
+# working notes from the build (session logs, diagnostics); not part of the project
+_archive/
+
+# dependencies and tooling
+node_modules/
+dist/
+build/
+.vscode/
+.idea/
+.claude/
+.DS_Store

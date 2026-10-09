@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎙️ Voice Testing - Pharmacy Agent</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 800px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        
+        h1 {
+            text-align: center;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+        }
+        
+        .status {
+            text-align: center;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        
+        .status.idle {
+            background: #f0f0f0;
+            color: #666;
+        }
+        
+        .status.listening {
+            background: #ffeaa7;
+            color: #d63031;
+            animation: pulse 1.5s infinite;
+        }
+        
+        .status.processing {
+            background: #74b9ff;
+            color: #0984e3;
+        }
+        
+        .status.speaking {
+            background: #55efc4;
+            color: #00b894;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+        
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        
+        button {
+            flex: 1;
+            padding: 15px 30px;
+            font-size: 16px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .btn-start {
+            background: #00b894;
+            color: white;
+        }
+        
+        .btn-stop {
+            background: #d63031;
+            color: white;
+        }
+        
+        .btn-reset {
+            background: #636e72;
+            color: white;
+        }
+        
+        .conversation {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+        }
+        
+        .message {
+            margin-bottom: 15px;
+            padding: 10px 15px;
+            border-radius: 10px;
+            animation: slideIn 0.3s;
+        }
+        
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .message.user {
+            background: #e3f2fd;
+            border-left: 4px solid #2196F3;
+        }
+        
+        .message.agent {
+            background: #f3e5f5;
+            border-left: 4px solid #9c27b0;
+        }
+        
+        .message.system {
+            background: #fff3e0;
+            border-left: 4px solid #ff9800;
+            font-style: italic;
+        }
+        
+        .speaker {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .action {
+            display: inline-block;
+            background: #4caf50;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 5px;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+        
+        .instructions {
+            background: #e8f5e9;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        
+        .instructions h3 {
+            color: #2e7d32;
+            margin-bottom: 10px;
+        }
+        
+        .instructions ul {
+            margin-left: 20px;
+        }
+        
+        .instructions li {
+            margin: 5px 0;
+            color: #424242;
+        }
+        
+        .wave {
+            display: inline-block;
+            width: 5px;
+            height: 20px;
+            background: #667eea;
+            margin: 0 2px;
+            border-radius: 3px;
+            animation: wave 1s ease-in-out infinite;
+        }
+        
+        .wave:nth-child(2) { animation-delay: 0.1s; }
+        .wave:nth-child(3) { animation-delay: 0.2s; }
+        .wave:nth-child(4) { animation-delay: 0.3s; }
+        
+        @keyframes wave {
+            0%, 100% { height: 20px; }
+            50% { height: 40px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎙️ Voice Testing - Pharmacy Agent</h1>
+        <p class="subtitle">Real-time Tamil conversation testing (Browser-based, NO dependencies!)</p>
+        
+        <div class="status idle" id="status">
+            Ready to start
+        </div>
+        
+        <div class="controls">
+            <button class="btn-start" id="startBtn" onclick="startConversation()">
+                🎤 Start Conversation
+            </button>
+            <button class="btn-stop" id="stopBtn" onclick="stopListening()" disabled>
+                ⏹️ Stop
+            </button>
+            <button class="btn-reset" onclick="resetConversation()">
+                🔄 Reset
+            </button>
+        </div>
+        
+        <div class="conversation" id="conversation">
+            <div class="message system">
+                <div class="speaker">💡 System</div>
+                Click "Start Conversation" to begin. Make sure your microphone is enabled!
+            </div>
+        </div>
+        
+        <div class="instructions">
+            <h3>📋 Instructions:</h3>
+            <ul>
+                <li>Click <strong>"Start Conversation"</strong> and allow microphone access</li>
+                <li>Speak in <strong>Tamil</strong> when you see "Listening..."</li>
+                <li>The agent will respond automatically in Tamil voice</li>
+                <li>Try: "வணக்கம்", "பாராசிட்டமால் கிடைக்குமா?", "மூணு ஸ்டிரிப் வேணும்"</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        const BASE_URL = 'http://localhost:4000';
+        const CALL_ID = 'web-voice-' + Date.now();
+        
+        let recognition = null;
+        let sessionInitialized = false;
+        let isProcessing = false;
+
+        // Initialize Web Speech API
+        window.SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        
+        if (!window.SpeechRecognition) {
+            document.getElementById('status').innerHTML = '❌ Speech Recognition not supported. Please use Chrome or Edge.';
+            document.getElementById('status').className = 'status idle';
+            document.getElementById('startBtn').disabled = true;
+        }
+
+        function addMessage(type, speaker, text, action = null) {
+            const conversation = document.getElementById('conversation');
+            const message = document.createElement('div');
+            message.className = `message ${type}`;
+            
+            let html = `<div class="speaker">${speaker}</div><div>${text}</div>`;
+            if (action && action !== 'NONE') {
+                html += `<div class="action">${action}</div>`;
+            }
+            
+            message.innerHTML = html;
+            conversation.appendChild(message);
+            conversation.scrollTop = conversation.scrollHeight;
+        }
+
+        function updateStatus(text, className) {
+            const status = document.getElementById('status');
+            status.textContent = text;
+            status.className = `status ${className}`;
+        }
+
+        async function initializeSession() {
+            if (sessionInitialized) return;
+            
+            updateStatus('Initializing conversation...', 'processing');
+            
+            try {
+                const response = await fetch(`${BASE_URL}/api/llm/init`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        callId: CALL_ID,
+                        customerName: 'Web Voice Test',
+                    }),
+                });
+                
+                const data = await response.json();
+                const greeting = data.greeting.assistant_speech;
+                
+                addMessage('agent', '🤖 Agent', greeting);
+                await speakText(greeting);
+                
+                sessionInitialized = true;
+                updateStatus('🎤 Listening... (speak in Tamil)', 'listening');
+            } catch (error) {
+                addMessage('system', '❌ Error', 'Failed to initialize. Make sure server is running: npm start');
+                updateStatus('Error - Server not running?', 'idle');
+            }
+        }
+
+        async function processTranscript(transcript) {
+            if (isProcessing || !transcript.trim()) return;
+            isProcessing = true;
+            
+            updateStatus('Processing...', 'processing');
+            addMessage('user', '👤 You', transcript);
+            
+            try {
+                const response = await fetch(`${BASE_URL}/api/llm/process`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        callId: CALL_ID,
+                        transcript,
+                    }),
+                });
+                
+                const data = await response.json();
+                const agentSpeech = data.response.assistant_speech;
+                const action = data.response.agent_action.type;
+                
+                addMessage('agent', '🤖 Agent', agentSpeech, action);
+                await speakText(agentSpeech);
+                
+                if (action === 'END_CALL') {
+                    updateStatus('Call ended', 'idle');
+                    stopListening();
+                    return;
+                }
+                
+                updateStatus('🎤 Listening... (speak in Tamil)', 'listening');
+                
+            } catch (error) {
+                addMessage('system', '❌ Error', 'Failed to process. Check server connection.');
+                updateStatus('Error processing', 'idle');
+            } finally {
+                isProcessing = false;
+            }
+        }
+
+        async function speakText(text) {
+            updateStatus('🔊 Agent speaking...', 'speaking');
+            
+            try {
+                const response = await fetch(`${BASE_URL}/api/tts/tamil`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        text, 
+                        format: 'base64',
+                        optimizeForWeb: true  // Faster, better quality
+                    }),
+                });
+                
+                const data = await response.json();
+                const audioData = atob(data.audio);
+                const arrayBuffer = new ArrayBuffer(audioData.length);
+                const view = new Uint8Array(arrayBuffer);
+                
+                for (let i = 0; i < audioData.length; i++) {
+                    view[i] = audioData.charCodeAt(i);
+                }
+                
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                const source = audioContext.createBufferSource();
+                source.buffer = audioBuffer;
+                source.connect(audioContext.destination);
+                
+                return new Promise((resolve) => {
+                    source.onended = resolve;
+                    source.start(0);
+                });
+                
+            } catch (error) {
+                console.error('Error playing audio:', error);
+            }
+        }
+
+        async function startConversation() {
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('stopBtn').disabled = false;
+            
+            await initializeSession();
+            
+            recognition = new SpeechRecognition();
+            recognition.lang = 'ta-IN';
+            recognition.continuous = true;
+            recognition.interimResults = false;
+            
+            recognition.onresult = (event) => {
+                const last = event.results.length - 1;
+                const transcript = event.results[last][0].transcript;
+                processTranscript(transcript);
+            };
+            
+            recognition.onerror = (event) => {
+                console.error('Speech recognition error:', event.error);
+                if (event.error !== 'no-speech') {
+                    addMessage('system', '⚠️ Warning', `Recognition error: ${event.error}`);
+                }
+            };
+            
+            recognition.onend = () => {
+                if (document.getElementById('stopBtn').disabled === false) {
+                    // Restart if not manually stopped
+                    recognition.start();
+                }
+            };
+            
+            recognition.start();
+        }
+
+        function stopListening() {
+            if (recognition) {
+                recognition.stop();
+                recognition = null;
+            }
+            
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+            updateStatus('Stopped', 'idle');
+        }
+
+        function resetConversation() {
+            stopListening();
+            document.getElementById('conversation').innerHTML = `
+                <div class="message system">
+                    <div class="speaker">💡 System</div>
+                    Conversation reset. Click "Start Conversation" to begin again.
+                </div>
+            `;
+            sessionInitialized = false;
+            isProcessing = false;
+            updateStatus('Ready to start', 'idle');
+        }
+    </script>
+</body>
+</html>
+
+
+
