@@ -1,15 +1,22 @@
-# Pharma Bot — a Tamil voice agent that phones pharmacy customers and takes their order
+# Pharma Bot — a voice agent that automates a pharmacy's order-taking calls, in Tamil
 
 [![tests](https://github.com/dakshinsiva/pharma-bot/actions/workflows/ci.yml/badge.svg)](https://github.com/dakshinsiva/pharma-bot/actions/workflows/ci.yml)
 ![node](https://img.shields.io/badge/node-18%2B-green)
 ![license](https://img.shields.io/badge/license-MIT-green)
 
-Give it a list of customers and it rings each one, greets them in Tamil, asks what medicines they
-need, confirms strength and quantity, and writes the result to a database as an order or a callback.
+A neighbourhood pharmacy in Tamil Nadu takes most of its repeat orders by phone: someone at the counter
+works down the list of regular customers, asks what they need this month, checks the strength and the
+number of strips, writes it on a pad, and promises to call back about anything out of stock. It is
+hours of the same short conversation, and it stops whenever the counter gets busy.
+
+Pharma Bot runs that call list itself. Give it the customers and it rings each one, greets them in
+Tamil, asks what medicines they need, confirms strength and quantity the way the pharmacist would, and
+writes the result straight to the database as an order ready for picking or a callback with a time.
 Speech comes in over the carrier's media stream, is transcribed as it is spoken, goes through a
 language model that must answer in Tamil *and* emit a machine-readable action, and goes back out as
-synthesised Tamil speech into the same call. No IVR menus, no "press 1", no English, and no human
-listening in: the agent's own decisions are what get saved.
+synthesised Tamil speech into the same call. No IVR menus, no "press 1", no English, and no one at
+the counter listening in: the agent's own decisions are what get saved, and every call is logged with
+its transcript.
 
 ![Pharma Bot: a Tamil voice agent that takes pharmacy orders over the phone](docs/images/cover.png)
 
@@ -18,9 +25,21 @@ with English glosses): greet, take every medicine the customer names in one brea
 together, save, close. Right, the object the model returns on every turn, the path one turn takes, and
 what the agent deliberately is not.*
 
-The use case is a neighbourhood pharmacy in Tamil Nadu that phones its regular customers to take
-repeat orders. Those calls are short, formulaic and in Tamil with English brand names mixed in ("Dolo
-650", "Crocin"), which makes them a good fit for an agent and a bad fit for a menu-driven IVR.
+## The workflow it automates
+
+| | At the counter today | With the agent |
+|---|---|---|
+| Who dials | A staff member, between customers | The queue, unattended, with a set gap between calls |
+| The conversation | "What do you need? Which strength? How many strips?" | The same script, in Tamil, with every medicine the customer names taken in one breath and confirmed together |
+| Where the order goes | A notepad or a WhatsApp message, typed up later | An `orders` row with name, strength and quantity, the moment the customer confirms |
+| Out-of-stock items | A promise to call back, remembered or not | A `callbacks` row with the requested time |
+| Record of the call | None | Transcript, actions taken, duration and outcome on the call log |
+| When it runs | Only when the counter is quiet | Any time, for as many customers as are pending |
+
+The calls are short, formulaic and in Tamil with English brand names mixed in ("Dolo 650", "Crocin"),
+which makes them a good fit for an agent and a bad fit for a menu-driven IVR. The pharmacy keeps the
+parts of the workflow that need a person: picking the order, deciding what is in stock, and the
+customers who would rather talk to someone they know.
 
 ## Why this is hard
 

@@ -1,7 +1,7 @@
 {
   "name": "pharma-bot",
   "version": "1.0.0",
-  "description": "Outbound voice agent that phones pharmacy customers, converses in Tamil, and turns the conversation into orders and callbacks",
+  "description": "Voice agent that automates a pharmacy's order-taking calls: phones regular customers, converses in Tamil, confirms strength and quantity, and writes orders and callbacks straight to the database",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
