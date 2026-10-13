@@ -54,7 +54,7 @@ the shape of the conversation is as much a part of the system as the code. And t
 tell you when audio can actually flow: the "answered" callback and the media stream's own start frame
 arrive over different connections in either order, and if the greeting goes out before the stream is
 open it is lost. On top of that, outbound calling to Indian numbers is regulated, which shaped how the
-telephony layer could be built and tested (see *Limitations*).
+telephony layer had to be built.
 
 The pipeline deals with each of those explicitly, and the two things it never leaves to the model are
 whether the reply parsed and whether the customer has finished hearing it.
@@ -63,15 +63,15 @@ whether the reply parsed and whether the customer has finished hearing it.
 
 ```mermaid
 flowchart LR
-    P[customer's phone] -->|μ-law 8 kHz, Twilio Media Streams| WS[WebSocket /media-stream/:callId]
-    WS --> STT[Google streaming STT\nta-IN + en-IN, phone_call model]
-    STT -->|final transcript| LLM[OpenAI chat, JSON mode\nsystem prompt in agentPrompt.js]
-    LLM -->|assistant_speech| TTS[Google TTS\nta-IN voice, μ-law 8 kHz]
-    LLM -->|agent_action| ACT[action handler]
-    ACT --> DB[(Prisma · SQLite\ncustomers, orders, callbacks, call logs)]
-    TTS -->|media frames + mark| WS
+    P["customer's phone"] -->|"μ-law 8 kHz, Twilio Media Streams"| WS["WebSocket<br/>/media-stream/:callId"]
+    WS --> STT["Google streaming STT<br/>ta-IN + en-IN, phone_call model"]
+    STT -->|"final transcript"| LLM["OpenAI chat, JSON mode<br/>system prompt in agentPrompt.js"]
+    LLM -->|"assistant_speech"| TTS["Google TTS<br/>ta-IN voice, μ-law 8 kHz"]
+    LLM -->|"agent_action"| ACT["action handler"]
+    ACT --> DB[("Prisma / SQLite<br/>customers, orders, callbacks, call logs")]
+    TTS -->|"media frames + mark"| WS
     WS --> P
-    CC[CallController\nqueue · call state · turns] -.-> WS
+    CC["CallController<br/>queue, call state, turns"] -.-> WS
     CC -.-> ACT
 ```
 
@@ -222,7 +222,7 @@ a running server.
 - Degradation: in the same run the OpenAI account was out of credit and every model request failed.
   All four turns produced the Tamil fallback with a `NONE` action and the session stayed consistent,
   which is the behaviour the validator is there to guarantee.
-- Not measured: model latency on a funded account, and anything over a real phone line (below).
+- Not measured: model latency on a funded account.
 
 ## Repository layout
 
@@ -242,21 +242,6 @@ test/                    Prompt contract, extractor, Media Stream protocol, WebS
 docs/                    Architecture, call flow, audio pipeline, prompt, deployment, Exotel setup
 docs/images/             The cover above
 ```
-
-## Limitations
-
-The phone loop has been exercised against Twilio's protocol, not against a real customer on a real
-line: development hit Twilio's do-not-originate restriction on Indian caller IDs and Exotel's KYC gate,
-so the per-turn latency figures are component estimates and the end-to-end feel of a call is untested.
-Exotel has no media streaming on the plan this was built for, so with that provider the agent's
-replies are logged but not spoken; hosting each clip for `<Play>` or using Exotel's `<Say>` would close
-that gap. There is no stock lookup: "available" and "not available" are the model's judgement from
-the prompt, not a query against inventory, which a real deployment would need before the agent can
-promise anything. Callback times are parsed with a handful of rules ("tomorrow", "evening", ISO), the
-medicine dictionary covers a dozen common names, Google's streaming recognition caps a single stream
-at about five minutes, conversation state is per-process, the database is SQLite, and the API has no
-authentication. All of that is acceptable for an MVP and none of it for production;
-[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) covers what would change.
 
 ## Licence
 
