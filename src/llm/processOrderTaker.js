@@ -1,3 +1,4 @@
+const logger = require('../utils/logger');
 const OpenAI = require('openai');
 const { ORDER_TAKER_PROMPT } = require('./orderTakerPrompt');
 
@@ -17,7 +18,7 @@ const conversationHistory = new Map();
  * Initialize order taking session
  */
 async function initializeOrderTaker(callId, customerName = 'Customer') {
-  console.log(`[OrderTaker] Initializing session for ${customerName} (${callId})`);
+  logger.info(`[OrderTaker] Initializing session for ${customerName} (${callId})`);
 
   const systemMessage = {
     role: 'system',
@@ -45,7 +46,7 @@ async function initializeOrderTaker(callId, customerName = 'Customer') {
     try {
       parsedResponse = JSON.parse(response);
     } catch (parseError) {
-      console.error('[OrderTaker] JSON parse error:', parseError);
+      logger.error('[OrderTaker] JSON parse error:', parseError);
       // Fallback greeting
       parsedResponse = {
         assistant_speech: 'வணக்கம். என்ன மருந்து வேணும்? சொல்லுங்க.',
@@ -65,14 +66,14 @@ async function initializeOrderTaker(callId, customerName = 'Customer') {
       content: response,
     });
 
-    console.log('[OrderTaker] Greeting:', parsedResponse.assistant_speech);
+    logger.info('[OrderTaker] Greeting:', parsedResponse.assistant_speech);
 
     return {
       greeting: parsedResponse,
       conversationHistory: conversationHistory.get(callId),
     };
   } catch (error) {
-    console.error('[OrderTaker] Initialization error:', error);
+    logger.error('[OrderTaker] Initialization error:', error);
     throw error;
   }
 }
@@ -81,7 +82,7 @@ async function initializeOrderTaker(callId, customerName = 'Customer') {
  * Process customer transcript and extract order
  */
 async function processOrderTranscript(callId, transcript) {
-  console.log(`[OrderTaker] Processing for ${callId}: "${transcript}"`);
+  logger.info(`[OrderTaker] Processing for ${callId}: "${transcript}"`);
 
   const history = conversationHistory.get(callId);
   if (!history) {
@@ -108,8 +109,8 @@ async function processOrderTranscript(callId, transcript) {
     try {
       parsedResponse = JSON.parse(response);
     } catch (parseError) {
-      console.error('[OrderTaker] JSON parse error:', parseError);
-      console.error('[OrderTaker] Raw response:', response);
+      logger.error('[OrderTaker] JSON parse error:', parseError);
+      logger.error('[OrderTaker] Raw response:', response);
 
       // Try to extract JSON from response
       const jsonMatch = response.match(/\{[\s\S]*\}/);
@@ -126,11 +127,11 @@ async function processOrderTranscript(callId, transcript) {
       content: response,
     });
 
-    console.log('[OrderTaker] Response:', parsedResponse.assistant_speech);
-    console.log('[OrderTaker] Action:', parsedResponse.agent_action.type);
+    logger.info('[OrderTaker] Response:', parsedResponse.assistant_speech);
+    logger.info('[OrderTaker] Action:', parsedResponse.agent_action.type);
 
     if (parsedResponse.agent_action.type === 'SAVE_ORDER') {
-      console.log('[OrderTaker] Order items:', parsedResponse.agent_action.order_details.items);
+      logger.info('[OrderTaker] Order items:', parsedResponse.agent_action.order_details.items);
     }
 
     return {
@@ -138,7 +139,7 @@ async function processOrderTranscript(callId, transcript) {
       conversationHistory: history,
     };
   } catch (error) {
-    console.error('[OrderTaker] Processing error:', error);
+    logger.error('[OrderTaker] Processing error:', error);
     throw error;
   }
 }
@@ -195,7 +196,7 @@ function getOrderActions(callId) {
  * Clean up conversation history
  */
 function cleanupOrderSession(callId) {
-  console.log(`[OrderTaker] Cleaning up session ${callId}`);
+  logger.info(`[OrderTaker] Cleaning up session ${callId}`);
   conversationHistory.delete(callId);
 }
 

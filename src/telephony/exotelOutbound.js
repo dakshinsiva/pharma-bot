@@ -1,3 +1,4 @@
+const logger = require('../utils/logger');
 const axios = require('axios');
 const { EventEmitter } = require('events');
 
@@ -34,7 +35,7 @@ class ExotelOutbound extends EventEmitter {
 
     this.activeCalls = new Map();
     
-    console.log('[Exotel] Initialized with phone number:', this.phoneNumber);
+    logger.info('[Exotel] Initialized with phone number:', this.phoneNumber);
   }
 
   /**
@@ -46,7 +47,7 @@ class ExotelOutbound extends EventEmitter {
    */
   async makeCall(to, callId, options = {}) {
     try {
-      console.log(`[Exotel] Initiating call to ${to} (callId: ${callId})`);
+      logger.info(`[Exotel] Initiating call to ${to} (callId: ${callId})`);
 
       // Format phone number for Exotel (Indian format: 0XXXXXXXXXX)
       // Exotel expects: 0 + 10 digit number (e.g., 09876543210)
@@ -59,7 +60,7 @@ class ExotelOutbound extends EventEmitter {
         formattedTo = '0' + to; // 9876543210 -> 09876543210
       }
 
-      console.log(`[Exotel] Formatted number: ${to} -> ${formattedTo}`);
+      logger.info(`[Exotel] Formatted number: ${to} -> ${formattedTo}`);
 
       // Exotel Connect API parameters for automated outbound calls
       // SOLUTION: Use a special URL format that Exotel recognizes
@@ -89,15 +90,15 @@ class ExotelOutbound extends EventEmitter {
       params.append('Url', `${this.baseUrl}/api/telephony/exotel/twiml/${callId}`);
       params.append('Method', 'GET'); // Use GET to fetch TwiML
       
-      console.log(`[Exotel] Using direct webhook URL: ${this.baseUrl}/api/telephony/exotel/twiml/${callId}`);
-      console.log(`[Exotel] Exotel will call this URL when call connects to fetch TwiML instructions`);
+      logger.info(`[Exotel] Using direct webhook URL: ${this.baseUrl}/api/telephony/exotel/twiml/${callId}`);
+      logger.info(`[Exotel] Exotel will call this URL when call connects to fetch TwiML instructions`);
 
-      console.log(`[Exotel] API Request URL: ${this.exotelApiUrl}/Calls/connect.json`);
-      console.log(`[Exotel] API Request params:`, Object.fromEntries(params));
+      logger.info(`[Exotel] API Request URL: ${this.exotelApiUrl}/Calls/connect.json`);
+      logger.info(`[Exotel] API Request params:`, Object.fromEntries(params));
 
       // Always use .json endpoint for consistent JSON responses
       const endpoint = `${this.exotelApiUrl}/Calls/connect.json`;
-      console.log(`[Exotel] Using endpoint: ${endpoint}`);
+      logger.info(`[Exotel] Using endpoint: ${endpoint}`);
 
       const response = await axios.post(
         endpoint,
@@ -105,17 +106,17 @@ class ExotelOutbound extends EventEmitter {
         this.authHeader
       );
 
-      console.log(`[Exotel] Raw API response:`, JSON.stringify(response.data, null, 2));
+      logger.info(`[Exotel] Raw API response:`, JSON.stringify(response.data, null, 2));
       
       // Handle different response formats from Exotel
       const callData = response.data.Call || response.data;
       
       if (!callData || !callData.Sid) {
-        console.error(`[Exotel] Unexpected response format:`, response.data);
+        logger.error(`[Exotel] Unexpected response format:`, response.data);
         throw new Error('Invalid response from Exotel - no Call SID returned');
       }
       
-      console.log(`[Exotel] Call created: ${callData.Sid}`);
+      logger.info(`[Exotel] Call created: ${callData.Sid}`);
 
       // Store call info
       this.activeCalls.set(callId, {
@@ -141,7 +142,7 @@ class ExotelOutbound extends EventEmitter {
       };
 
     } catch (error) {
-      console.error(`[Exotel] Error making call to ${to}:`, error.response?.data || error.message);
+      logger.error(`[Exotel] Error making call to ${to}:`, error.response?.data || error.message);
       
       this.emit('callFailed', {
         callId,
@@ -227,7 +228,7 @@ class ExotelOutbound extends EventEmitter {
 
       return response.data.Call;
     } catch (error) {
-      console.error(`[Exotel] Error fetching call details:`, error);
+      logger.error(`[Exotel] Error fetching call details:`, error);
       throw error;
     }
   }
@@ -242,13 +243,13 @@ class ExotelOutbound extends EventEmitter {
       const callInfo = this.activeCalls.get(callId);
       
       if (!callInfo) {
-        console.log(`[Exotel] No active call found for ${callId}`);
+        logger.info(`[Exotel] No active call found for ${callId}`);
         return false;
       }
 
       // Exotel doesn't have direct API to end call
       // We can update the call flow or just remove from tracking
-      console.log(`[Exotel] Ending call ${callId} (${callInfo.callSid})`);
+      logger.info(`[Exotel] Ending call ${callId} (${callInfo.callSid})`);
 
       // Clean up
       this.activeCalls.delete(callId);
@@ -261,7 +262,7 @@ class ExotelOutbound extends EventEmitter {
 
       return true;
     } catch (error) {
-      console.error(`[Exotel] Error ending call ${callId}:`, error);
+      logger.error(`[Exotel] Error ending call ${callId}:`, error);
       return false;
     }
   }
@@ -285,7 +286,7 @@ class ExotelOutbound extends EventEmitter {
       }
     }
     
-    console.log(`[Exotel] Status update for ${CallSid}: ${Status}, callId: ${callId || 'not found'}`);
+    logger.info(`[Exotel] Status update for ${CallSid}: ${Status}, callId: ${callId || 'not found'}`);
 
     // Update call info
     if (callId && this.activeCalls.has(callId)) {
@@ -293,7 +294,7 @@ class ExotelOutbound extends EventEmitter {
       callInfo.status = Status;
     } else if (CallSid) {
       // Store status even if we can't find callId
-      console.log(`[Exotel] CallSid ${CallSid} status: ${Status} (callId not found in activeCalls)`);
+      logger.info(`[Exotel] CallSid ${CallSid} status: ${Status} (callId not found in activeCalls)`);
     }
 
     // Map Exotel status to our events
@@ -326,7 +327,7 @@ class ExotelOutbound extends EventEmitter {
    */
   async sendSMS(to, message) {
     try {
-      console.log(`[Exotel] Sending SMS to ${to}`);
+      logger.info(`[Exotel] Sending SMS to ${to}`);
 
       const params = new URLSearchParams({
         From: this.phoneNumber,
@@ -340,7 +341,7 @@ class ExotelOutbound extends EventEmitter {
         this.authHeader
       );
 
-      console.log(`[Exotel] SMS sent: ${response.data.SMSMessage.Sid}`);
+      logger.info(`[Exotel] SMS sent: ${response.data.SMSMessage.Sid}`);
 
       return {
         success: true,
@@ -349,7 +350,7 @@ class ExotelOutbound extends EventEmitter {
       };
 
     } catch (error) {
-      console.error(`[Exotel] Error sending SMS:`, error.response?.data || error.message);
+      logger.error(`[Exotel] Error sending SMS:`, error.response?.data || error.message);
       return {
         success: false,
         error: error.response?.data || error.message,
@@ -404,7 +405,7 @@ class ExotelOutbound extends EventEmitter {
         url: rec.Url,
       }));
     } catch (error) {
-      console.error(`[Exotel] Error fetching recordings:`, error);
+      logger.error(`[Exotel] Error fetching recordings:`, error);
       return [];
     }
   }
@@ -422,7 +423,7 @@ class ExotelOutbound extends EventEmitter {
 
       return response.data.Account;
     } catch (error) {
-      console.error(`[Exotel] Error fetching account details:`, error);
+      logger.error(`[Exotel] Error fetching account details:`, error);
       throw error;
     }
   }

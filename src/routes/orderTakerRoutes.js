@@ -1,3 +1,4 @@
+const logger = require('../utils/logger');
 const express = require('express');
 const router = express.Router();
 const {
@@ -37,7 +38,7 @@ router.post('/init', async (req, res) => {
       greeting: result.greeting,
     });
   } catch (error) {
-    console.error('Order taker init error:', error);
+    logger.error('Order taker init error:', error);
     res.status(500).json({
       success: false,
       error: error.message,
@@ -68,7 +69,7 @@ router.post('/process', async (req, res) => {
       response: result.response,
     });
   } catch (error) {
-    console.error('Order taker process error:', error);
+    logger.error('Order taker process error:', error);
     res.status(500).json({
       success: false,
       error: error.message,
@@ -98,7 +99,7 @@ router.get('/transcript/:callId', async (req, res) => {
       transcript,
     });
   } catch (error) {
-    console.error('Get transcript error:', error);
+    logger.error('Get transcript error:', error);
     res.status(500).json({
       success: false,
       error: error.message,
@@ -121,7 +122,7 @@ router.get('/actions/:callId', async (req, res) => {
       actions,
     });
   } catch (error) {
-    console.error('Get actions error:', error);
+    logger.error('Get actions error:', error);
     res.status(500).json({
       success: false,
       error: error.message,
@@ -144,7 +145,7 @@ router.delete('/session/:callId', async (req, res) => {
       message: 'Session cleaned up',
     });
   } catch (error) {
-    console.error('Cleanup error:', error);
+    logger.error('Cleanup error:', error);
     res.status(500).json({
       success: false,
       error: error.message,

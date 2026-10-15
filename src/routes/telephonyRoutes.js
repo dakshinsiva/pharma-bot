@@ -1,3 +1,4 @@
+const logger = require('../utils/logger');
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
@@ -17,7 +18,7 @@ const upload = multer();
  */
 router.post('/twilio/status', (req, res) => {
   try {
-    console.log('[TelephonyRoutes] Twilio status callback:', req.body);
+    logger.info('[TelephonyRoutes] Twilio status callback:', req.body);
 
     if (callController.telephony.handleStatusUpdate) {
       callController.telephony.handleStatusUpdate(req.body);
@@ -25,7 +26,7 @@ router.post('/twilio/status', (req, res) => {
 
     res.status(200).send('OK');
   } catch (error) {
-    console.error('[TelephonyRoutes] Error handling Twilio status:', error);
+    logger.error('[TelephonyRoutes] Error handling Twilio status:', error);
     res.status(500).send('Error');
   }
 });
@@ -43,7 +44,7 @@ router.get('/twilio/twiml/:callId', (req, res) => {
     res.type('text/xml');
     res.send(twiml);
   } catch (error) {
-    console.error('[TelephonyRoutes] Error generating TwiML:', error);
+    logger.error('[TelephonyRoutes] Error generating TwiML:', error);
     res.status(500).send('Error');
   }
 });
@@ -56,9 +57,9 @@ router.get('/twilio/twiml/:callId', (req, res) => {
 router.post('/exotel/status', upload.none(), (req, res) => {
   try {
     // Exotel sends multipart/form-data - multer parses it into req.body
-    console.log('[TelephonyRoutes] Exotel status callback - Body:', req.body);
-    console.log('[TelephonyRoutes] Exotel status callback - Query:', req.query);
-    console.log('[TelephonyRoutes] Exotel status callback - Raw body keys:', Object.keys(req.body));
+    logger.info('[TelephonyRoutes] Exotel status callback - Body:', req.body);
+    logger.info('[TelephonyRoutes] Exotel status callback - Query:', req.query);
+    logger.info('[TelephonyRoutes] Exotel status callback - Raw body keys:', Object.keys(req.body));
     
     // Get data from body (now properly parsed by multer)
     const statusData = req.body;
@@ -74,8 +75,8 @@ router.post('/exotel/status', upload.none(), (req, res) => {
       Duration: statusData.Duration || statusData.duration || statusData.Duration,
     };
     
-    console.log('[TelephonyRoutes] Normalized status data:', normalizedData);
-    console.log('[TelephonyRoutes] Full status data:', JSON.stringify(statusData, null, 2));
+    logger.info('[TelephonyRoutes] Normalized status data:', normalizedData);
+    logger.info('[TelephonyRoutes] Full status data:', JSON.stringify(statusData, null, 2));
 
     if (callController.telephony.handleStatusUpdate) {
       callController.telephony.handleStatusUpdate(normalizedData);
@@ -83,7 +84,7 @@ router.post('/exotel/status', upload.none(), (req, res) => {
 
     res.status(200).send('OK');
   } catch (error) {
-    console.error('[TelephonyRoutes] Error handling Exotel status:', error);
+    logger.error('[TelephonyRoutes] Error handling Exotel status:', error);
     res.status(500).send('Error');
   }
 });
@@ -98,9 +99,9 @@ router.get('/exotel/twiml', (req, res) => {
     // Get callId from query parameter
     let callId = req.query.CustomField || req.query.CallSid || req.query.callId;
     
-    console.log(`[TelephonyRoutes] Exotel requesting TwiML (GET with query) for callId: ${callId}`);
-    console.log(`[TelephonyRoutes] Request query:`, req.query);
-    console.log(`[TelephonyRoutes] Request headers:`, JSON.stringify(req.headers, null, 2));
+    logger.info(`[TelephonyRoutes] Exotel requesting TwiML (GET with query) for callId: ${callId}`);
+    logger.info(`[TelephonyRoutes] Request query:`, req.query);
+    logger.info(`[TelephonyRoutes] Request headers:`, JSON.stringify(req.headers, null, 2));
     
     // Check if variable wasn't substituted ({{CustomField}} or $CustomField)
     const isVariableNotSubstituted = !callId || 
@@ -110,7 +111,7 @@ router.get('/exotel/twiml', (req, res) => {
       callId.startsWith('$');
     
     if (isVariableNotSubstituted) {
-      console.warn(`[TelephonyRoutes] Variable not substituted: ${callId}`);
+      logger.warn(`[TelephonyRoutes] Variable not substituted: ${callId}`);
       
       // Try to get CallSid from query params or headers
       const callSid = req.query.CallSid || 
@@ -119,29 +120,29 @@ router.get('/exotel/twiml', (req, res) => {
                      req.headers['call-sid'] ||
                      req.headers['x-call-sid'];
       
-      console.log(`[TelephonyRoutes] Attempting to find callId from CallSid: ${callSid}`);
+      logger.info(`[TelephonyRoutes] Attempting to find callId from CallSid: ${callSid}`);
       
       if (callSid && callController.telephony && callController.telephony.getActiveCalls) {
         // Try to find callId from active calls using CallSid
         const activeCalls = callController.telephony.getActiveCalls();
-        console.log(`[TelephonyRoutes] Active calls:`, activeCalls.length);
+        logger.info(`[TelephonyRoutes] Active calls:`, activeCalls.length);
         const matchingCall = activeCalls.find(call => call.callSid === callSid);
         if (matchingCall) {
           callId = matchingCall.callId;
-          console.log(`[TelephonyRoutes] ✅ Found callId ${callId} from CallSid ${callSid}`);
+          logger.info(`[TelephonyRoutes] ✅ Found callId ${callId} from CallSid ${callSid}`);
         } else {
           // If no match, try to use the most recent active call (fallback)
           if (activeCalls.length > 0) {
             const mostRecent = activeCalls[activeCalls.length - 1];
             callId = mostRecent.callId;
-            console.log(`[TelephonyRoutes] ⚠️ Using most recent active call: ${callId}`);
+            logger.info(`[TelephonyRoutes] ⚠️ Using most recent active call: ${callId}`);
           }
         }
       }
       
       // If still no callId, use fallback TwiML (will still work for basic greeting)
       if (!callId || isVariableNotSubstituted) {
-        console.log(`[TelephonyRoutes] Using fallback TwiML (no valid callId)`);
+        logger.info(`[TelephonyRoutes] Using fallback TwiML (no valid callId)`);
         // Use simple Say without Gather - Exotel may not support speech input in Gather
         const fallbackTwiML = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
@@ -156,14 +157,14 @@ router.get('/exotel/twiml', (req, res) => {
     
     const twiml = callController.telephony.generateInitialTwiML(callId);
     
-    console.log(`[TelephonyRoutes] Generated TwiML:`, twiml);
+    logger.info(`[TelephonyRoutes] Generated TwiML:`, twiml);
     
     res.type('text/xml');
     res.send(twiml);
     
-    console.log(`[TelephonyRoutes] TwiML sent successfully to Exotel`);
+    logger.info(`[TelephonyRoutes] TwiML sent successfully to Exotel`);
   } catch (error) {
-    console.error('[TelephonyRoutes] Error generating TwiML:', error);
+    logger.error('[TelephonyRoutes] Error generating TwiML:', error);
     res.status(500).send('Error');
   }
 });
@@ -182,14 +183,14 @@ router.get('/exotel/twiml/:callId', (req, res) => {
       callId = req.query.CustomField || req.query.CallSid || req.query.callId || callId;
     }
     
-    console.log(`[TelephonyRoutes] Exotel requesting TwiML (GET) for callId: ${callId}`);
-    console.log(`[TelephonyRoutes] Request params:`, req.params);
-    console.log(`[TelephonyRoutes] Request query:`, req.query);
-    console.log(`[TelephonyRoutes] Request headers:`, JSON.stringify(req.headers, null, 2));
-    console.log(`[TelephonyRoutes] Request IP: ${req.ip || req.connection.remoteAddress}`);
+    logger.info(`[TelephonyRoutes] Exotel requesting TwiML (GET) for callId: ${callId}`);
+    logger.info(`[TelephonyRoutes] Request params:`, req.params);
+    logger.info(`[TelephonyRoutes] Request query:`, req.query);
+    logger.info(`[TelephonyRoutes] Request headers:`, JSON.stringify(req.headers, null, 2));
+    logger.info(`[TelephonyRoutes] Request IP: ${req.ip || req.connection.remoteAddress}`);
     
     if (!callId || callId.includes('{{')) {
-      console.error(`[TelephonyRoutes] Invalid callId: ${callId} - Exotel variable not substituted`);
+      logger.error(`[TelephonyRoutes] Invalid callId: ${callId} - Exotel variable not substituted`);
       // Return a basic TwiML even if callId is missing
       const fallbackTwiML = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
@@ -201,14 +202,14 @@ router.get('/exotel/twiml/:callId', (req, res) => {
     
     const twiml = callController.telephony.generateInitialTwiML(callId);
     
-    console.log(`[TelephonyRoutes] Generated TwiML:`, twiml);
+    logger.info(`[TelephonyRoutes] Generated TwiML:`, twiml);
     
     res.type('text/xml');
     res.send(twiml);
     
-    console.log(`[TelephonyRoutes] TwiML sent successfully to Exotel`);
+    logger.info(`[TelephonyRoutes] TwiML sent successfully to Exotel`);
   } catch (error) {
-    console.error('[TelephonyRoutes] Error generating TwiML:', error);
+    logger.error('[TelephonyRoutes] Error generating TwiML:', error);
     res.status(500).send('Error');
   }
 });
@@ -222,20 +223,20 @@ router.post('/exotel/twiml/:callId', upload.none(), (req, res) => {
   try {
     const { callId } = req.params;
     
-    console.log(`[TelephonyRoutes] Exotel Passthru requesting TwiML (POST) for callId: ${callId}`);
-    console.log(`[TelephonyRoutes] Passthru body:`, req.body);
-    console.log(`[TelephonyRoutes] Passthru query:`, req.query);
+    logger.info(`[TelephonyRoutes] Exotel Passthru requesting TwiML (POST) for callId: ${callId}`);
+    logger.info(`[TelephonyRoutes] Passthru body:`, req.body);
+    logger.info(`[TelephonyRoutes] Passthru query:`, req.query);
     
     const twiml = callController.telephony.generateInitialTwiML(callId);
     
-    console.log(`[TelephonyRoutes] Generated TwiML for Passthru:`, twiml);
+    logger.info(`[TelephonyRoutes] Generated TwiML for Passthru:`, twiml);
     
     res.type('text/xml');
     res.send(twiml);
     
-    console.log(`[TelephonyRoutes] TwiML sent successfully to Exotel Passthru`);
+    logger.info(`[TelephonyRoutes] TwiML sent successfully to Exotel Passthru`);
   } catch (error) {
-    console.error('[TelephonyRoutes] Error generating TwiML for Passthru:', error);
+    logger.error('[TelephonyRoutes] Error generating TwiML for Passthru:', error);
     res.status(500).send('Error');
   }
 });
@@ -247,32 +248,32 @@ router.post('/exotel/twiml/:callId', upload.none(), (req, res) => {
  */
 router.post('/exotel/webhook', upload.none(), (req, res) => {
   try {
-    console.log(`[TelephonyRoutes] Exotel webhook called`);
-    console.log(`[TelephonyRoutes] Webhook body:`, req.body);
-    console.log(`[TelephonyRoutes] Webhook query:`, req.query);
+    logger.info(`[TelephonyRoutes] Exotel webhook called`);
+    logger.info(`[TelephonyRoutes] Webhook body:`, req.body);
+    logger.info(`[TelephonyRoutes] Webhook query:`, req.query);
     
     // Extract callId from CustomField or other parameters
     const callId = req.body.CustomField || req.query.CustomField || req.body.CallSid || req.query.CallSid;
     
     if (!callId) {
-      console.error(`[TelephonyRoutes] No callId found in webhook`);
+      logger.error(`[TelephonyRoutes] No callId found in webhook`);
       // Return empty TwiML if no callId
       res.type('text/xml');
       return res.send(`<?xml version="1.0" encoding="UTF-8"?><Response><Say>Error connecting call.</Say></Response>`);
     }
     
-    console.log(`[TelephonyRoutes] Exotel webhook requesting TwiML for callId: ${callId}`);
+    logger.info(`[TelephonyRoutes] Exotel webhook requesting TwiML for callId: ${callId}`);
     
     const twiml = callController.telephony.generateInitialTwiML(callId);
     
-    console.log(`[TelephonyRoutes] Generated TwiML for webhook:`, twiml);
+    logger.info(`[TelephonyRoutes] Generated TwiML for webhook:`, twiml);
     
     res.type('text/xml');
     res.send(twiml);
     
-    console.log(`[TelephonyRoutes] TwiML sent successfully to Exotel via webhook`);
+    logger.info(`[TelephonyRoutes] TwiML sent successfully to Exotel via webhook`);
   } catch (error) {
-    console.error('[TelephonyRoutes] Error handling Exotel webhook:', error);
+    logger.error('[TelephonyRoutes] Error handling Exotel webhook:', error);
     res.type('text/xml');
     res.status(500).send(`<?xml version="1.0" encoding="UTF-8"?><Response><Say>Error processing call.</Say></Response>`);
   }
@@ -287,12 +288,12 @@ router.post('/exotel/stream/:callId', (req, res) => {
     const { callId } = req.params;
     
     // Handle Exotel audio streaming
-    console.log(`[TelephonyRoutes] Exotel stream for call ${callId}`);
+    logger.info(`[TelephonyRoutes] Exotel stream for call ${callId}`);
     
     // This is a placeholder - actual implementation depends on Exotel's streaming API
     res.status(200).send('OK');
   } catch (error) {
-    console.error('[TelephonyRoutes] Error handling Exotel stream:', error);
+    logger.error('[TelephonyRoutes] Error handling Exotel stream:', error);
     res.status(500).send('Error');
   }
 });

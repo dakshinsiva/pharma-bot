@@ -1,3 +1,4 @@
+const logger = require('../utils/logger');
 const express = require('express');
 const router = express.Router();
 const { callController } = require('../telephony/callController');
@@ -26,7 +27,7 @@ router.post('/initiate', async (req, res) => {
 
     res.json(result);
   } catch (error) {
-    console.error('[CallRoutes] Error initiating call:', error);
+    logger.error('[CallRoutes] Error initiating call:', error);
     res.status(500).json({
       success: false,
       error: error.message,
@@ -72,7 +73,7 @@ router.post('/batch', async (req, res) => {
       queueStatus: callController.getQueueStatus(),
     });
   } catch (error) {
-    console.error('[CallRoutes] Error adding batch:', error);
+    logger.error('[CallRoutes] Error adding batch:', error);
     res.status(500).json({
       success: false,
       error: error.message,
@@ -109,7 +110,7 @@ router.post('/queue-all', async (req, res) => {
       queueStatus: callController.getQueueStatus(),
     });
   } catch (error) {
-    console.error('[CallRoutes] Error queueing all:', error);
+    logger.error('[CallRoutes] Error queueing all:', error);
     res.status(500).json({
       success: false,
       error: error.message,
@@ -132,7 +133,7 @@ router.post('/:callId/end', async (req, res) => {
       message: result ? 'Call ended' : 'Call not found or already ended',
     });
   } catch (error) {
-    console.error('[CallRoutes] Error ending call:', error);
+    logger.error('[CallRoutes] Error ending call:', error);
     res.status(500).json({
       success: false,
       error: error.message,
@@ -154,7 +155,7 @@ router.get('/active', (req, res) => {
       calls: activeCalls,
     });
   } catch (error) {
-    console.error('[CallRoutes] Error getting active calls:', error);
+    logger.error('[CallRoutes] Error getting active calls:', error);
     res.status(500).json({
       success: false,
       error: error.message,
@@ -183,7 +184,7 @@ router.get('/:callId', (req, res) => {
       call: callData,
     });
   } catch (error) {
-    console.error('[CallRoutes] Error getting call data:', error);
+    logger.error('[CallRoutes] Error getting call data:', error);
     res.status(500).json({
       success: false,
       error: error.message,
@@ -204,7 +205,7 @@ router.get('/queue/status', (req, res) => {
       ...status,
     });
   } catch (error) {
-    console.error('[CallRoutes] Error getting queue status:', error);
+    logger.error('[CallRoutes] Error getting queue status:', error);
     res.status(500).json({
       success: false,
       error: error.message,

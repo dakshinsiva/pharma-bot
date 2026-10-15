@@ -1,3 +1,4 @@
+const logger = require('../utils/logger');
 const WebSocket = require('ws');
 const { TwilioMediaStream } = require('./twilioMediaStream');
 
@@ -38,7 +39,7 @@ function attachMediaStreamServer(httpServer, onStream) {
   });
 
   wss.on('error', (error) => {
-    console.error('[MediaStream] Server error:', error);
+    logger.error('[MediaStream] Server error:', error);
   });
 
   return wss;

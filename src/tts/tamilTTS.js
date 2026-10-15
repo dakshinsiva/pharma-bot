@@ -1,3 +1,4 @@
+const logger = require('../utils/logger');
 const textToSpeech = require('@google-cloud/text-to-speech');
 const fs = require('fs');
 const util = require('util');
@@ -39,7 +40,7 @@ class TamilTTS {
    */
   async synthesize(text, options = {}) {
     try {
-      console.log(`[TTS] Synthesizing Tamil text: ${text.substring(0, 50)}...`);
+      logger.info(`[TTS] Synthesizing Tamil text: ${text.substring(0, 50)}...`);
 
       const request = {
         input: { text: text },
@@ -49,11 +50,11 @@ class TamilTTS {
 
       const [response] = await this.client.synthesizeSpeech(request);
       
-      console.log(`[TTS] Successfully synthesized audio (${response.audioContent.length} bytes)`);
+      logger.info(`[TTS] Successfully synthesized audio (${response.audioContent.length} bytes)`);
       
       return response.audioContent;
     } catch (error) {
-      console.error('[TTS] Error synthesizing speech:', error);
+      logger.error('[TTS] Error synthesizing speech:', error);
       throw error;
     }
   }
@@ -78,11 +79,11 @@ class TamilTTS {
       // Write audio to file
       await util.promisify(fs.writeFile)(outputPath, audioBuffer, 'binary');
       
-      console.log(`[TTS] Audio saved to: ${outputPath}`);
+      logger.info(`[TTS] Audio saved to: ${outputPath}`);
       
       return outputPath;
     } catch (error) {
-      console.error('[TTS] Error saving audio file:', error);
+      logger.error('[TTS] Error saving audio file:', error);
       throw error;
     }
   }
@@ -98,7 +99,7 @@ class TamilTTS {
       const audioBuffer = await this.synthesize(text, options);
       return audioBuffer.toString('base64');
     } catch (error) {
-      console.error('[TTS] Error converting to base64:', error);
+      logger.error('[TTS] Error converting to base64:', error);
       throw error;
     }
   }
@@ -120,7 +121,7 @@ class TamilTTS {
         languageCodes: voice.languageCodes,
       }));
     } catch (error) {
-      console.error('[TTS] Error listing voices:', error);
+      logger.error('[TTS] Error listing voices:', error);
       throw error;
     }
   }
@@ -157,7 +158,7 @@ class TamilTTS {
    */
   async synthesizeSSML(ssml, options = {}) {
     try {
-      console.log(`[TTS] Synthesizing SSML: ${ssml.substring(0, 50)}...`);
+      logger.info(`[TTS] Synthesizing SSML: ${ssml.substring(0, 50)}...`);
 
       const request = {
         input: { ssml: ssml },
@@ -167,11 +168,11 @@ class TamilTTS {
 
       const [response] = await this.client.synthesizeSpeech(request);
       
-      console.log(`[TTS] Successfully synthesized SSML audio (${response.audioContent.length} bytes)`);
+      logger.info(`[TTS] Successfully synthesized SSML audio (${response.audioContent.length} bytes)`);
       
       return response.audioContent;
     } catch (error) {
-      console.error('[TTS] Error synthesizing SSML:', error);
+      logger.error('[TTS] Error synthesizing SSML:', error);
       throw error;
     }
   }

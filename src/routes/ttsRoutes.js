@@ -1,3 +1,4 @@
+const logger = require('../utils/logger');
 const express = require('express');
 const router = express.Router();
 const { synthesizeTamil, synthesizeTamilToBase64, tamilTTS } = require('../tts/tamilTTS');
@@ -44,7 +45,7 @@ router.post('/tamil', async (req, res) => {
       res.send(audioBuffer);
     }
   } catch (error) {
-    console.error('[TTSRoutes] Error synthesizing Tamil:', error);
+    logger.error('[TTSRoutes] Error synthesizing Tamil:', error);
     res.status(500).json({
       success: false,
       error: error.message,
@@ -76,7 +77,7 @@ router.post('/tamil/file', async (req, res) => {
       message: 'Audio saved to file',
     });
   } catch (error) {
-    console.error('[TTSRoutes] Error saving audio file:', error);
+    logger.error('[TTSRoutes] Error saving audio file:', error);
     res.status(500).json({
       success: false,
       error: error.message,
@@ -98,7 +99,7 @@ router.get('/voices', async (req, res) => {
       voices: voices,
     });
   } catch (error) {
-    console.error('[TTSRoutes] Error getting voices:', error);
+    logger.error('[TTSRoutes] Error getting voices:', error);
     res.status(500).json({
       success: false,
       error: error.message,
@@ -129,7 +130,7 @@ router.post('/tamil/custom', async (req, res) => {
     
     res.send(audioBuffer);
   } catch (error) {
-    console.error('[TTSRoutes] Error synthesizing with custom voice:', error);
+    logger.error('[TTSRoutes] Error synthesizing with custom voice:', error);
     res.status(500).json({
       success: false,
       error: error.message,
@@ -160,7 +161,7 @@ router.post('/tamil/ssml', async (req, res) => {
     
     res.send(audioBuffer);
   } catch (error) {
-    console.error('[TTSRoutes] Error synthesizing SSML:', error);
+    logger.error('[TTSRoutes] Error synthesizing SSML:', error);
     res.status(500).json({
       success: false,
       error: error.message,

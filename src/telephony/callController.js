@@ -1,3 +1,4 @@
+const logger = require('../utils/logger');
 const { v4: uuidv4 } = require('uuid');
 const { EventEmitter } = require('events');
 const { TwilioOutbound } = require('./twilioOutbound');
@@ -36,7 +37,7 @@ class CallController extends EventEmitter {
     // Set up event listeners
     this.setupEventListeners();
 
-    console.log(`[CallController] Initialized with provider: ${this.provider}`);
+    logger.info(`[CallController] Initialized with provider: ${this.provider}`);
   }
 
   /**
@@ -44,32 +45,32 @@ class CallController extends EventEmitter {
    */
   setupEventListeners() {
     this.telephony.on('callInitiated', (data) => {
-      console.log(`[CallController] Call initiated:`, data);
+      logger.info(`[CallController] Call initiated:`, data);
       this.updateCallStatus(data.callId, 'initiated');
     });
 
     this.telephony.on('callRinging', (data) => {
-      console.log(`[CallController] Call ringing:`, data);
+      logger.info(`[CallController] Call ringing:`, data);
       this.updateCallStatus(data.callId, 'ringing');
     });
 
     this.telephony.on('callAnswered', (data) => {
-      console.log(`[CallController] Call answered:`, data);
+      logger.info(`[CallController] Call answered:`, data);
       this.handleCallAnswered(data.callId);
     });
 
     this.telephony.on('callCompleted', (data) => {
-      console.log(`[CallController] Call completed:`, data);
+      logger.info(`[CallController] Call completed:`, data);
       this.handleCallCompleted(data.callId, data.status);
     });
 
     this.telephony.on('callFailed', (data) => {
-      console.log(`[CallController] Call failed:`, data);
+      logger.info(`[CallController] Call failed:`, data);
       this.handleCallFailed(data.callId, data.error);
     });
 
     this.telephony.on('callEnded', (data) => {
-      console.log(`[CallController] Call ended:`, data);
+      logger.info(`[CallController] Call ended:`, data);
       this.cleanupCall(data.callId);
     });
   }
@@ -79,7 +80,7 @@ class CallController extends EventEmitter {
    * @param {Array} customers - List of customer objects
    */
   async addToQueue(customers) {
-    console.log(`[CallController] Adding ${customers.length} customers to queue`);
+    logger.info(`[CallController] Adding ${customers.length} customers to queue`);
     
     for (const customer of customers) {
       this.callQueue.push({
@@ -102,12 +103,12 @@ class CallController extends EventEmitter {
     if (this.isProcessingQueue) return;
     
     this.isProcessingQueue = true;
-    console.log(`[CallController] Starting queue processing`);
+    logger.info(`[CallController] Starting queue processing`);
 
     while (this.callQueue.length > 0) {
       const customer = this.callQueue.shift();
       
-      console.log(`[CallController] Processing customer: ${customer.name} (${customer.phone})`);
+      logger.info(`[CallController] Processing customer: ${customer.name} (${customer.phone})`);
       
       try {
         await this.initiateCall(customer.customerId, customer.phone, customer.name);
@@ -117,12 +118,12 @@ class CallController extends EventEmitter {
         await new Promise(resolve => setTimeout(resolve, delayMs));
         
       } catch (error) {
-        console.error(`[CallController] Error processing customer ${customer.customerId}:`, error);
+        logger.error(`[CallController] Error processing customer ${customer.customerId}:`, error);
       }
     }
 
     this.isProcessingQueue = false;
-    console.log(`[CallController] Queue processing complete`);
+    logger.info(`[CallController] Queue processing complete`);
   }
 
   /**
@@ -135,7 +136,7 @@ class CallController extends EventEmitter {
   async initiateCall(customerId, phone, name) {
     const callId = uuidv4();
     
-    console.log(`[CallController] Initiating call to ${name} (${phone}), callId: ${callId}`);
+    logger.info(`[CallController] Initiating call to ${name} (${phone}), callId: ${callId}`);
 
     try {
       // Create call log in database
@@ -182,7 +183,7 @@ class CallController extends EventEmitter {
       return result;
 
     } catch (error) {
-      console.error(`[CallController] Error initiating call:`, error);
+      logger.error(`[CallController] Error initiating call:`, error);
       this.cleanupCall(callId);
       throw error;
     }
@@ -199,7 +200,7 @@ class CallController extends EventEmitter {
     const callData = this.activeCalls.get(callId);
     if (!callData) return;
 
-    console.log(`[CallController] Call ${callId} answered`);
+    logger.info(`[CallController] Call ${callId} answered`);
     await this.updateCallStatus(callId, 'in-progress');
 
     if (this.provider !== 'twilio') {
@@ -216,7 +217,7 @@ class CallController extends EventEmitter {
   attachMediaStream(callId, stream) {
     const callData = this.activeCalls.get(callId);
     if (!callData) {
-      console.warn(`[CallController] Media stream for unknown call ${callId}; closing`);
+      logger.warn(`[CallController] Media stream for unknown call ${callId}; closing`);
       stream.close();
       return;
     }
@@ -228,16 +229,16 @@ class CallController extends EventEmitter {
     });
 
     stream.on('start', () => {
-      console.log(`[CallController] Media stream started for ${callId} (${stream.streamSid})`);
+      logger.info(`[CallController] Media stream started for ${callId} (${stream.streamSid})`);
       this.startConversation(callId);
     });
 
     stream.on('error', (error) => {
-      console.error(`[CallController] Media stream error for ${callId}:`, error.message);
+      logger.error(`[CallController] Media stream error for ${callId}:`, error.message);
     });
 
     stream.on('close', () => {
-      console.log(`[CallController] Media stream closed for ${callId}`);
+      logger.info(`[CallController] Media stream closed for ${callId}`);
       if (callData.mediaStream === stream) callData.mediaStream = null;
     });
   }
@@ -251,7 +252,7 @@ class CallController extends EventEmitter {
     if (!callData || callData.conversationStarted) return;
     callData.conversationStarted = true;
 
-    console.log(`[CallController] Starting conversation for ${callId}`);
+    logger.info(`[CallController] Starting conversation for ${callId}`);
 
     try {
       // Listen first so nothing the customer says while we greet is lost
@@ -266,7 +267,7 @@ class CallController extends EventEmitter {
       await this.playAudio(callId, audioBuffer);
 
     } catch (error) {
-      console.error(`[CallController] Error starting conversation:`, error);
+      logger.error(`[CallController] Error starting conversation:`, error);
       await this.endCall(callId);
     }
   }
@@ -283,7 +284,7 @@ class CallController extends EventEmitter {
     if (!callData) return;
 
     const transcript = transcriptData.transcript;
-    console.log(`[CallController] Transcript for ${callId}: ${transcript}`);
+    logger.info(`[CallController] Transcript for ${callId}: ${transcript}`);
 
     callData.transcript.push({
       text: transcript,
@@ -298,7 +299,7 @@ class CallController extends EventEmitter {
     callData.turnChain = callData.turnChain
       .then(() => this.processTurn(callId, transcript))
       .catch((error) => {
-        console.error(`[CallController] Error processing transcript:`, error);
+        logger.error(`[CallController] Error processing transcript:`, error);
       });
     return callData.turnChain;
   }
@@ -330,7 +331,7 @@ class CallController extends EventEmitter {
     const callData = this.activeCalls.get(callId);
     if (!callData) return;
 
-    console.log(`[CallController] Handling action for ${callId}: ${action.type}`);
+    logger.info(`[CallController] Handling action for ${callId}: ${action.type}`);
 
     try {
       switch (action.type) {
@@ -346,7 +347,7 @@ class CallController extends EventEmitter {
 
         case 'NOT_AVAILABLE':
           // Just log, no database action needed yet
-          console.log(`[CallController] Medicine not available for ${callId}`);
+          logger.info(`[CallController] Medicine not available for ${callId}`);
           break;
 
         case 'END_CALL':
@@ -356,7 +357,7 @@ class CallController extends EventEmitter {
 
         case 'NEXT_CUSTOMER':
           // This will be handled by queue processing
-          console.log(`[CallController] Moving to next customer after ${callId}`);
+          logger.info(`[CallController] Moving to next customer after ${callId}`);
           break;
 
         case 'NONE':
@@ -365,7 +366,7 @@ class CallController extends EventEmitter {
           break;
       }
     } catch (error) {
-      console.error(`[CallController] Error handling action:`, error);
+      logger.error(`[CallController] Error handling action:`, error);
     }
   }
 
@@ -385,10 +386,10 @@ class CallController extends EventEmitter {
         },
       });
 
-      console.log(`[CallController] Order saved: ${order.id}`);
+      logger.info(`[CallController] Order saved: ${order.id}`);
       return order;
     } catch (error) {
-      console.error(`[CallController] Error saving order:`, error);
+      logger.error(`[CallController] Error saving order:`, error);
       throw error;
     }
   }
@@ -430,10 +431,10 @@ class CallController extends EventEmitter {
         },
       });
 
-      console.log(`[CallController] Callback saved: ${callback.id}`);
+      logger.info(`[CallController] Callback saved: ${callback.id}`);
       return callback;
     } catch (error) {
-      console.error(`[CallController] Error saving callback:`, error);
+      logger.error(`[CallController] Error saving callback:`, error);
       throw error;
     }
   }
@@ -453,9 +454,9 @@ class CallController extends EventEmitter {
         },
       });
 
-      console.log(`[CallController] Customer ${customerId} status updated to: ${status}`);
+      logger.info(`[CallController] Customer ${customerId} status updated to: ${status}`);
     } catch (error) {
-      console.error(`[CallController] Error updating customer status:`, error);
+      logger.error(`[CallController] Error updating customer status:`, error);
     }
   }
 
@@ -476,7 +477,7 @@ class CallController extends EventEmitter {
         data: { status: status },
       });
     } catch (error) {
-      console.error(`[CallController] Error updating call status:`, error);
+      logger.error(`[CallController] Error updating call status:`, error);
     }
   }
 
@@ -494,11 +495,11 @@ class CallController extends EventEmitter {
     if (!callData) return false;
 
     if (callData.mediaStream) {
-      console.log(`[CallController] Playing ${audioBuffer.length} bytes to ${callId}`);
+      logger.info(`[CallController] Playing ${audioBuffer.length} bytes to ${callId}`);
       return callData.mediaStream.play(audioBuffer);
     }
 
-    console.warn(`[CallController] No media stream for ${callId}; audio not played (${this.provider})`);
+    logger.warn(`[CallController] No media stream for ${callId}; audio not played (${this.provider})`);
     return false;
   }
 
@@ -507,7 +508,7 @@ class CallController extends EventEmitter {
    * @param {String} callId - Unique call identifier
    */
   async endCall(callId) {
-    console.log(`[CallController] Ending call ${callId}`);
+    logger.info(`[CallController] Ending call ${callId}`);
     
     await this.telephony.endCall(callId);
     await this.cleanupCall(callId);
@@ -522,7 +523,7 @@ class CallController extends EventEmitter {
     const callData = this.activeCalls.get(callId);
     if (!callData) return;
 
-    console.log(`[CallController] Call ${callId} completed with status: ${status}`);
+    logger.info(`[CallController] Call ${callId} completed with status: ${status}`);
 
     try {
       // Get final LLM session data
@@ -546,10 +547,10 @@ class CallController extends EventEmitter {
         },
       });
 
-      console.log(`[CallController] Call log updated for ${callId}`);
+      logger.info(`[CallController] Call log updated for ${callId}`);
 
     } catch (error) {
-      console.error(`[CallController] Error handling call completion:`, error);
+      logger.error(`[CallController] Error handling call completion:`, error);
     }
 
     await this.cleanupCall(callId);
@@ -561,7 +562,7 @@ class CallController extends EventEmitter {
    * @param {String} error - Error message
    */
   async handleCallFailed(callId, error) {
-    console.error(`[CallController] Call ${callId} failed:`, error);
+    logger.error(`[CallController] Call ${callId} failed:`, error);
     
     await this.updateCallStatus(callId, 'failed');
     await this.cleanupCall(callId);
@@ -575,7 +576,7 @@ class CallController extends EventEmitter {
     const callData = this.activeCalls.get(callId);
     if (!callData) return;
 
-    console.log(`[CallController] Cleaning up call ${callId}`);
+    logger.info(`[CallController] Cleaning up call ${callId}`);
 
     // Stop STT stream
     if (callData.sttStream) {

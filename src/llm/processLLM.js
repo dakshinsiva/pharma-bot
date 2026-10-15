@@ -1,3 +1,4 @@
+const logger = require('../utils/logger');
 const OpenAI = require('openai');
 const { 
   SYSTEM_PROMPT, 
@@ -39,7 +40,7 @@ class LLMProcessor {
       startTime: new Date(),
     });
 
-    console.log(`[LLM] Session initialized for call ${callId}`);
+    logger.info(`[LLM] Session initialized for call ${callId}`);
     
     return greeting;
   }
@@ -52,12 +53,12 @@ class LLMProcessor {
    */
   async processTranscript(callId, transcript) {
     try {
-      console.log(`[LLM] Processing transcript for call ${callId}: ${transcript}`);
+      logger.info(`[LLM] Processing transcript for call ${callId}: ${transcript}`);
 
       // Get or create session
       let session = this.conversationSessions.get(callId);
       if (!session) {
-        console.log(`[LLM] No session found for call ${callId}, initializing...`);
+        logger.info(`[LLM] No session found for call ${callId}, initializing...`);
         this.initializeSession(callId);
         session = this.conversationSessions.get(callId);
       }
@@ -87,20 +88,20 @@ class LLMProcessor {
       });
 
       const responseText = completion.choices[0].message.content;
-      console.log(`[LLM] Raw response: ${responseText}`);
+      logger.info(`[LLM] Raw response: ${responseText}`);
 
       // Parse JSON response
       let response;
       try {
         response = JSON.parse(responseText);
       } catch (parseError) {
-        console.error(`[LLM] Failed to parse response JSON:`, parseError);
+        logger.error(`[LLM] Failed to parse response JSON:`, parseError);
         response = getFallbackResponse();
       }
 
       // Validate response format
       if (!validateLLMResponse(response)) {
-        console.error(`[LLM] Invalid response format, using fallback`);
+        logger.error(`[LLM] Invalid response format, using fallback`);
         response = getFallbackResponse();
       }
 
@@ -116,13 +117,13 @@ class LLMProcessor {
       // Update session
       this.conversationSessions.set(callId, session);
 
-      console.log(`[LLM] Response for call ${callId}: ${response.assistant_speech}`);
-      console.log(`[LLM] Action: ${response.agent_action.type}`);
+      logger.info(`[LLM] Response for call ${callId}: ${response.assistant_speech}`);
+      logger.info(`[LLM] Action: ${response.agent_action.type}`);
 
       return response;
 
     } catch (error) {
-      console.error(`[LLM] Error processing transcript for call ${callId}:`, error);
+      logger.error(`[LLM] Error processing transcript for call ${callId}:`, error);
       
       // Return fallback response on error
       return getFallbackResponse();
@@ -187,7 +188,7 @@ class LLMProcessor {
       session.endTime = new Date();
       session.duration = (session.endTime - session.startTime) / 1000; // seconds
       
-      console.log(`[LLM] Session ended for call ${callId}, duration: ${session.duration}s`);
+      logger.info(`[LLM] Session ended for call ${callId}, duration: ${session.duration}s`);
       
       // Store final session data before deleting
       const finalData = { ...session };
@@ -229,14 +230,14 @@ class LLMProcessor {
       const ageMinutes = (now - session.startTime) / 1000 / 60;
       
       if (ageMinutes > maxAgeMinutes) {
-        console.log(`[LLM] Cleaning up old session ${callId} (age: ${ageMinutes.toFixed(1)} minutes)`);
+        logger.info(`[LLM] Cleaning up old session ${callId} (age: ${ageMinutes.toFixed(1)} minutes)`);
         this.conversationSessions.delete(callId);
         cleaned++;
       }
     }
 
     if (cleaned > 0) {
-      console.log(`[LLM] Cleaned up ${cleaned} old sessions`);
+      logger.info(`[LLM] Cleaned up ${cleaned} old sessions`);
     }
 
     return cleaned;

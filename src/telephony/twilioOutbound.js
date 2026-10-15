@@ -1,3 +1,4 @@
+const logger = require('../utils/logger');
 const twilio = require('twilio');
 const { EventEmitter } = require('events');
 
@@ -23,7 +24,7 @@ class TwilioOutbound extends EventEmitter {
     this.client = twilio(this.accountSid, this.authToken);
     this.activeCalls = new Map();
     
-    console.log('[Twilio] Initialized with phone number:', this.phoneNumber);
+    logger.info('[Twilio] Initialized with phone number:', this.phoneNumber);
   }
 
   /**
@@ -35,7 +36,7 @@ class TwilioOutbound extends EventEmitter {
    */
   async makeCall(to, callId, options = {}) {
     try {
-      console.log(`[Twilio] Initiating call to ${to} (callId: ${callId})`);
+      logger.info(`[Twilio] Initiating call to ${to} (callId: ${callId})`);
 
       const twiml = this.generateInitialTwiML(callId);
       
@@ -51,7 +52,7 @@ class TwilioOutbound extends EventEmitter {
         ...options,
       });
 
-      console.log(`[Twilio] Call created: ${call.sid}`);
+      logger.info(`[Twilio] Call created: ${call.sid}`);
 
       // Store call info
       this.activeCalls.set(callId, {
@@ -77,7 +78,7 @@ class TwilioOutbound extends EventEmitter {
       };
 
     } catch (error) {
-      console.error(`[Twilio] Error making call to ${to}:`, error);
+      logger.error(`[Twilio] Error making call to ${to}:`, error);
       
       this.emit('callFailed', {
         callId,
@@ -147,10 +148,10 @@ class TwilioOutbound extends EventEmitter {
         twiml: twiml,
       });
 
-      console.log(`[Twilio] Updated call ${callSid}`);
+      logger.info(`[Twilio] Updated call ${callSid}`);
       return call;
     } catch (error) {
-      console.error(`[Twilio] Error updating call ${callSid}:`, error);
+      logger.error(`[Twilio] Error updating call ${callSid}:`, error);
       throw error;
     }
   }
@@ -166,7 +167,7 @@ class TwilioOutbound extends EventEmitter {
       const callInfo = this.activeCalls.get(callId);
       
       if (!callInfo) {
-        console.error(`[Twilio] No active call found for ${callId}`);
+        logger.error(`[Twilio] No active call found for ${callId}`);
         return false;
       }
 
@@ -175,7 +176,7 @@ class TwilioOutbound extends EventEmitter {
 
       return true;
     } catch (error) {
-      console.error(`[Twilio] Error playing audio for call ${callId}:`, error);
+      logger.error(`[Twilio] Error playing audio for call ${callId}:`, error);
       return false;
     }
   }
@@ -190,7 +191,7 @@ class TwilioOutbound extends EventEmitter {
       const callInfo = this.activeCalls.get(callId);
       
       if (!callInfo) {
-        console.log(`[Twilio] No active call found for ${callId}`);
+        logger.info(`[Twilio] No active call found for ${callId}`);
         return false;
       }
 
@@ -198,7 +199,7 @@ class TwilioOutbound extends EventEmitter {
         status: 'completed',
       });
 
-      console.log(`[Twilio] Ended call ${callId} (${callInfo.callSid})`);
+      logger.info(`[Twilio] Ended call ${callId} (${callInfo.callSid})`);
 
       // Clean up
       this.activeCalls.delete(callId);
@@ -211,7 +212,7 @@ class TwilioOutbound extends EventEmitter {
 
       return true;
     } catch (error) {
-      console.error(`[Twilio] Error ending call ${callId}:`, error);
+      logger.error(`[Twilio] Error ending call ${callId}:`, error);
       return false;
     }
   }
@@ -223,7 +224,7 @@ class TwilioOutbound extends EventEmitter {
   handleStatusUpdate(statusData) {
     const { CallSid, CallStatus, AnsweredBy } = statusData;
     
-    console.log(`[Twilio] Status update for ${CallSid}: ${CallStatus}${AnsweredBy ? ` (answered by ${AnsweredBy})` : ''}`);
+    logger.info(`[Twilio] Status update for ${CallSid}: ${CallStatus}${AnsweredBy ? ` (answered by ${AnsweredBy})` : ''}`);
 
     // Find call by SID
     let callId = null;
@@ -243,9 +244,9 @@ class TwilioOutbound extends EventEmitter {
       case 'in-progress':
         if (AnsweredBy && AnsweredBy.startsWith('machine')) {
           // Voicemail picked up: there is nobody to talk to, hang up.
-          console.log(`[Twilio] Answering machine detected on ${CallSid}; hanging up`);
+          logger.info(`[Twilio] Answering machine detected on ${CallSid}; hanging up`);
           this.client.calls(CallSid).update({ status: 'completed' }).catch((error) => {
-            console.error(`[Twilio] Could not hang up ${CallSid}:`, error.message);
+            logger.error(`[Twilio] Could not hang up ${CallSid}:`, error.message);
           });
           break;
         }
@@ -313,7 +314,7 @@ class TwilioOutbound extends EventEmitter {
         url: `https://api.twilio.com${rec.uri.replace('.json', '.mp3')}`,
       }));
     } catch (error) {
-      console.error(`[Twilio] Error fetching recordings:`, error);
+      logger.error(`[Twilio] Error fetching recordings:`, error);
       return [];
     }
   }

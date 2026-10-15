@@ -1,3 +1,4 @@
+const logger = require('../utils/logger');
 const express = require('express');
 const router = express.Router();
 const { llmProcessor } = require('../llm/processLLM');
@@ -28,7 +29,7 @@ router.post('/process', async (req, res) => {
       response: response,
     });
   } catch (error) {
-    console.error('[LLMRoutes] Error processing transcript:', error);
+    logger.error('[LLMRoutes] Error processing transcript:', error);
     res.status(500).json({
       success: false,
       error: error.message,
@@ -58,7 +59,7 @@ router.post('/init', (req, res) => {
       greeting: greeting,
     });
   } catch (error) {
-    console.error('[LLMRoutes] Error initializing session:', error);
+    logger.error('[LLMRoutes] Error initializing session:', error);
     res.status(500).json({
       success: false,
       error: error.message,
@@ -87,7 +88,7 @@ router.get('/session/:callId', (req, res) => {
       session: session,
     });
   } catch (error) {
-    console.error('[LLMRoutes] Error getting session:', error);
+    logger.error('[LLMRoutes] Error getting session:', error);
     res.status(500).json({
       success: false,
       error: error.message,
@@ -110,7 +111,7 @@ router.get('/transcript/:callId', (req, res) => {
       transcript: transcript,
     });
   } catch (error) {
-    console.error('[LLMRoutes] Error getting transcript:', error);
+    logger.error('[LLMRoutes] Error getting transcript:', error);
     res.status(500).json({
       success: false,
       error: error.message,
@@ -133,7 +134,7 @@ router.get('/actions/:callId', (req, res) => {
       actions: actions,
     });
   } catch (error) {
-    console.error('[LLMRoutes] Error getting actions:', error);
+    logger.error('[LLMRoutes] Error getting actions:', error);
     res.status(500).json({
       success: false,
       error: error.message,
@@ -154,7 +155,7 @@ router.get('/stats', (req, res) => {
       stats: stats,
     });
   } catch (error) {
-    console.error('[LLMRoutes] Error getting stats:', error);
+    logger.error('[LLMRoutes] Error getting stats:', error);
     res.status(500).json({
       success: false,
       error: error.message,
@@ -177,7 +178,7 @@ router.delete('/session/:callId', (req, res) => {
       finalData: finalData,
     });
   } catch (error) {
-    console.error('[LLMRoutes] Error ending session:', error);
+    logger.error('[LLMRoutes] Error ending session:', error);
     res.status(500).json({
       success: false,
       error: error.message,

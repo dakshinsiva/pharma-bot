@@ -1,4 +1,6 @@
-# Pharma Bot — a voice agent that automates a pharmacy's order-taking calls, in Tamil
+# Pharma Bot
+
+**A voice agent that takes a pharmacy's repeat orders over the phone, in Tamil.**
 
 [![tests](https://github.com/dakshinsiva/pharma-bot/actions/workflows/ci.yml/badge.svg)](https://github.com/dakshinsiva/pharma-bot/actions/workflows/ci.yml)
 ![node](https://img.shields.io/badge/node-18%2B-green)
@@ -41,7 +43,7 @@ which makes them a good fit for an agent and a bad fit for a menu-driven IVR. Th
 parts of the workflow that need a person: picking the order, deciding what is in stock, and the
 customers who would rather talk to someone they know.
 
-## Why this is hard
+## The hard parts
 
 A phone call arrives as 8 kHz μ-law, a format designed in the 1970s to squeeze a voice down a copper
 pair. Tamil speech recognition is already weaker than English, and the words that matter most, the
@@ -59,7 +61,7 @@ telephony layer had to be built.
 The pipeline deals with each of those explicitly, and the two things it never leaves to the model are
 whether the reply parsed and whether the customer has finished hearing it.
 
-## Pipeline
+## How a call flows
 
 ```mermaid
 flowchart LR
@@ -126,7 +128,7 @@ The conversational prompt was then rewritten to batch: if the customer names thr
 quantities in one sentence, the agent confirms all three in one reply and saves one order. The
 analysis behind the change is in [docs/CONVERSATION_VS_ORDER_TAKER.md](docs/CONVERSATION_VS_ORDER_TAKER.md).
 
-## What comes out
+## What gets written to the database
 
 Three kinds of record, all keyed to a customer, all written during the call rather than after it:
 
@@ -147,7 +149,7 @@ item the dictionary does not know is kept with a low confidence and the reason a
 reviewing orders can see which lines the agent was unsure about rather than having them silently
 dropped.
 
-## Running it
+## Run it locally
 
 You need Node 18+, an OpenAI key, and a Google Cloud service account with Speech-to-Text and
 Text-to-Speech enabled. A telephony account is only needed for real phone calls.
@@ -184,7 +186,7 @@ Exotel needs a Flow pointing at this server; the steps are in [docs/EXOTEL_SETUP
 they need no network or credentials and run in CI. `npm run test:system` exercises the HTTP API against
 a running server.
 
-## Design notes
+## Choices and trade-offs
 
 - **Structured output as the integration boundary.** JSON mode plus a validator means a bad model reply
   degrades to a polite "please repeat", never to a corrupted order. The action types live in one place
@@ -210,7 +212,7 @@ a running server.
 - **Confidence instead of rejection.** The extractor normalises what it recognises and passes through
   what it does not, scored, so review is possible and nothing is lost.
 
-## Validation
+## How it was tested
 
 - Protocol: 23 unit tests drive the Media Stream handler with recorded Twilio frames (`start`,
   `media`, `mark`, `clear`) and a real WebSocket client against the upgrade router, and check the
@@ -224,7 +226,7 @@ a running server.
   which is the behaviour the validator is there to guarantee.
 - Not measured: model latency on a funded account.
 
-## Repository layout
+## Files
 
 ```
 server.js, app.js        HTTP + WebSocket entry point and Express routes

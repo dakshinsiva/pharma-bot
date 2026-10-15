@@ -1,3 +1,4 @@
+const logger = require('./src/utils/logger');
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
@@ -28,7 +29,7 @@ app.use(express.static('public'));
 
 // Request logging
 app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+  logger.info(`${new Date().toISOString()} - ${req.method} ${req.path}`);
   next();
 });
 
@@ -94,7 +95,7 @@ app.use((req, res, next) => {
 
 // Error handler
 app.use((error, req, res, next) => {
-  console.error('Error:', error);
+  logger.error('Error:', error);
   
   res.status(error.status || 500).json({
     success: false,
@@ -110,11 +111,11 @@ app.use((error, req, res, next) => {
  */
 function setupWebSocketServer(server) {
   const wss = attachMediaStreamServer(server, (callId, stream) => {
-    console.log(`[WebSocket] Media stream connected for call ${callId}`);
+    logger.info(`[WebSocket] Media stream connected for call ${callId}`);
     callController.attachMediaStream(callId, stream);
   });
 
-  console.log('[WebSocket] Media stream server initialized');
+  logger.info('[WebSocket] Media stream server initialized');
   return wss;
 }
 

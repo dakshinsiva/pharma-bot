@@ -3,6 +3,7 @@
  * This prompt defines the exact behavior and call flow
  */
 
+const logger = require('../utils/logger');
 const SYSTEM_PROMPT = `You are an automated outbound calling agent for a pharmacy.
 
 All assistant_speech MUST be in natural Tamil.
@@ -414,18 +415,18 @@ function validateLLMResponse(response) {
   if (!response) return false;
   
   if (!response.assistant_speech || typeof response.assistant_speech !== 'string') {
-    console.error('[LLM] Invalid response: missing or invalid assistant_speech');
+    logger.error('[LLM] Invalid response: missing or invalid assistant_speech');
     return false;
   }
 
   if (!response.agent_action || typeof response.agent_action !== 'object') {
-    console.error('[LLM] Invalid response: missing or invalid agent_action');
+    logger.error('[LLM] Invalid response: missing or invalid agent_action');
     return false;
   }
 
   const validTypes = ['NONE', 'SAVE_ORDER', 'SAVE_CALLBACK', 'NOT_AVAILABLE', 'END_CALL', 'NEXT_CUSTOMER'];
   if (!validTypes.includes(response.agent_action.type)) {
-    console.error('[LLM] Invalid response: invalid agent_action type');
+    logger.error('[LLM] Invalid response: invalid agent_action type');
     return false;
   }
 

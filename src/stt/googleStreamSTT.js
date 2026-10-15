@@ -1,3 +1,4 @@
+const logger = require('../utils/logger');
 const speech = require('@google-cloud/speech');
 const { Transform } = require('stream');
 
@@ -21,7 +22,7 @@ class GoogleSTTStream {
    */
   start() {
     if (this.isActive) {
-      console.log(`[STT] Stream already active for call ${this.callId}`);
+      logger.info(`[STT] Stream already active for call ${this.callId}`);
       return;
     }
 
@@ -42,7 +43,7 @@ class GoogleSTTStream {
     this.recognizeStream = this.client
       .streamingRecognize(request)
       .on('error', (error) => {
-        console.error(`[STT] Error for call ${this.callId}:`, error);
+        logger.error(`[STT] Error for call ${this.callId}:`, error);
         this.handleError(error);
       })
       .on('data', (data) => {
@@ -50,7 +51,7 @@ class GoogleSTTStream {
       });
 
     this.isActive = true;
-    console.log(`[STT] Started streaming for call ${this.callId}`);
+    logger.info(`[STT] Started streaming for call ${this.callId}`);
   }
 
   /**
@@ -59,14 +60,14 @@ class GoogleSTTStream {
    */
   write(audioChunk) {
     if (!this.isActive || !this.recognizeStream) {
-      console.warn(`[STT] Stream not active for call ${this.callId}`);
+      logger.warn(`[STT] Stream not active for call ${this.callId}`);
       return;
     }
 
     try {
       this.recognizeStream.write(audioChunk);
     } catch (error) {
-      console.error(`[STT] Error writing to stream for call ${this.callId}:`, error);
+      logger.error(`[STT] Error writing to stream for call ${this.callId}:`, error);
       this.handleError(error);
     }
   }
@@ -81,7 +82,7 @@ class GoogleSTTStream {
       const isFinal = data.results[0].isFinal;
       const confidence = data.results[0].alternatives[0].confidence || 0;
 
-      console.log(`[STT] Call ${this.callId} - ${isFinal ? 'FINAL' : 'INTERIM'}: ${transcript}`);
+      logger.info(`[STT] Call ${this.callId} - ${isFinal ? 'FINAL' : 'INTERIM'}: ${transcript}`);
 
       // Only process final transcripts
       if (isFinal) {
@@ -109,7 +110,7 @@ class GoogleSTTStream {
    * @param {Error} error - The error object
    */
   handleError(error) {
-    console.error(`[STT] Stream error for call ${this.callId}:`, error.message);
+    logger.error(`[STT] Stream error for call ${this.callId}:`, error.message);
     
     // Notify callback of error
     if (this.onTranscriptCallback) {
@@ -122,7 +123,7 @@ class GoogleSTTStream {
 
     // Attempt to restart stream if it's a recoverable error
     if (error.code !== 11 && this.isActive) { // Code 11 is CANCELLED
-      console.log(`[STT] Attempting to restart stream for call ${this.callId}`);
+      logger.info(`[STT] Attempting to restart stream for call ${this.callId}`);
       this.stop();
       setTimeout(() => this.start(), 1000);
     }
@@ -152,13 +153,13 @@ class GoogleSTTStream {
       return;
     }
 
-    console.log(`[STT] Stopping stream for call ${this.callId}`);
+    logger.info(`[STT] Stopping stream for call ${this.callId}`);
     
     if (this.recognizeStream) {
       try {
         this.recognizeStream.end();
       } catch (error) {
-        console.error(`[STT] Error ending stream:`, error);
+        logger.error(`[STT] Error ending stream:`, error);
       }
       this.recognizeStream = null;
     }

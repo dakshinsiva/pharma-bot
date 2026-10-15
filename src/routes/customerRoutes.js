@@ -1,3 +1,4 @@
+const logger = require('../utils/logger');
 const express = require('express');
 const router = express.Router();
 const prisma = require('../db/prisma');
@@ -34,7 +35,7 @@ router.post('/', async (req, res) => {
       customer: customer,
     });
   } catch (error) {
-    console.error('[CustomerRoutes] Error creating customer:', error);
+    logger.error('[CustomerRoutes] Error creating customer:', error);
     
     if (error.code === 'P2002') {
       return res.status(409).json({
@@ -94,7 +95,7 @@ router.post('/batch', async (req, res) => {
       errorDetails: errors,
     });
   } catch (error) {
-    console.error('[CustomerRoutes] Error creating customers:', error);
+    logger.error('[CustomerRoutes] Error creating customers:', error);
     res.status(500).json({
       success: false,
       error: error.message,
@@ -128,7 +129,7 @@ router.get('/', async (req, res) => {
       customers: customers,
     });
   } catch (error) {
-    console.error('[CustomerRoutes] Error fetching customers:', error);
+    logger.error('[CustomerRoutes] Error fetching customers:', error);
     res.status(500).json({
       success: false,
       error: error.message,
@@ -168,7 +169,7 @@ router.get('/:id', async (req, res) => {
       customer: customer,
     });
   } catch (error) {
-    console.error('[CustomerRoutes] Error fetching customer:', error);
+    logger.error('[CustomerRoutes] Error fetching customer:', error);
     res.status(500).json({
       success: false,
       error: error.message,
@@ -200,7 +201,7 @@ router.put('/:id', async (req, res) => {
       customer: customer,
     });
   } catch (error) {
-    console.error('[CustomerRoutes] Error updating customer:', error);
+    logger.error('[CustomerRoutes] Error updating customer:', error);
     
     if (error.code === 'P2025') {
       return res.status(404).json({
@@ -233,7 +234,7 @@ router.delete('/:id', async (req, res) => {
       message: 'Customer deleted',
     });
   } catch (error) {
-    console.error('[CustomerRoutes] Error deleting customer:', error);
+    logger.error('[CustomerRoutes] Error deleting customer:', error);
     
     if (error.code === 'P2025') {
       return res.status(404).json({
@@ -268,7 +269,7 @@ router.get('/:id/orders', async (req, res) => {
       orders: orders,
     });
   } catch (error) {
-    console.error('[CustomerRoutes] Error fetching orders:', error);
+    logger.error('[CustomerRoutes] Error fetching orders:', error);
     res.status(500).json({
       success: false,
       error: error.message,
@@ -295,7 +296,7 @@ router.get('/:id/callbacks', async (req, res) => {
       callbacks: callbacks,
     });
   } catch (error) {
-    console.error('[CustomerRoutes] Error fetching callbacks:', error);
+    logger.error('[CustomerRoutes] Error fetching callbacks:', error);
     res.status(500).json({
       success: false,
       error: error.message,
@@ -322,7 +323,7 @@ router.get('/:id/call-logs', async (req, res) => {
       callLogs: callLogs,
     });
   } catch (error) {
-    console.error('[CustomerRoutes] Error fetching call logs:', error);
+    logger.error('[CustomerRoutes] Error fetching call logs:', error);
     res.status(500).json({
       success: false,
       error: error.message,
